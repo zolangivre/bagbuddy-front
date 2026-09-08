@@ -4,27 +4,38 @@ import { AuthService } from '../../core/auth/auth.service';
 import { CurrencyService } from '../../core/currency.service';
 import { initialsOf } from '../../core/format';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { Listing, ListingFilters } from '../../core/models';
+import { Listing, ListingFilters, SortOption } from '../../core/models';
 import { Avatar } from '../../shared/ui/avatar';
-import { FilterBar } from '../../shared/ui/filter-bar';
+import { Filters } from '../../shared/ui/filters';
 import { Loader } from '../../shared/ui/loader';
 import { PageHeader } from '../../shared/ui/page-header';
+import { ResultsHeader } from '../../shared/ui/results-header';
 import { Segmented, SegmentedOption } from '../../shared/ui/segmented';
+import { SortSelect } from '../../shared/ui/sort-select';
 import { StatCard } from '../../shared/ui/stat-card';
 import { HomeCard } from './home-card';
 import { SellView } from './sell-view';
 
-/** Portage de app/(tabs)/home.js. */
+/** Portage de app/(tabs)/home.js, remis en gabarit rail + resultats. */
 @Component({
   selector: 'bb-home-page',
-  imports: [PageHeader, StatCard, Avatar, FilterBar, Segmented, HomeCard, SellView, Loader],
+  imports: [
+    PageHeader,
+    StatCard,
+    Avatar,
+    Filters,
+    Segmented,
+    SortSelect,
+    ResultsHeader,
+    HomeCard,
+    SellView,
+    Loader,
+  ],
   template: `
     <bb-page-header
       [title]="i18n.t('welcome_back', { name: firstName() })"
       [subtitle]="i18n.t('find_luggage_space')"
     >
-      <bb-avatar slot="aside" [initials]="initials()" [size]="48" />
-
       <div class="stats">
         <bb-stat-card
           icon="plane"
@@ -33,7 +44,7 @@ import { SellView } from './sell-view';
         />
         <bb-stat-card
           icon="weight"
-          [value]="totalWeight() + 'kg'"
+          [value]="totalWeight() + ' kg'"
           [label]="i18n.t('available_weight')"
         />
         <bb-stat-card
@@ -43,26 +54,43 @@ import { SellView } from './sell-view';
         />
       </div>
 
-      <bb-filter-bar [(filters)]="filters" />
+      <bb-avatar
+        slot="aside"
+        [initials]="initials()"
+        [size]="48"
+        background="rgba(255, 255, 255, 0.22)"
+        color="var(--bb-white)"
+        borderColor="rgba(255, 255, 255, 0.5)"
+      />
     </bb-page-header>
 
-    <div class="bb-page segmented">
+    <div class="bb-page switcher">
       <bb-segmented [options]="modes()" [(value)]="mode" [label]="i18n.t('home')" />
     </div>
 
     <div class="bb-page content">
       @if (mode() === 'buy') {
-        @if (loading()) {
-          <bb-loader [label]="i18n.t('loading')" />
-        } @else if (visibleListings().length) {
-          <div class="grid">
-            @for (listing of visibleListings(); track listing.id) {
-              <bb-home-card [item]="listing" />
+        <div class="bb-with-rail">
+          <bb-filters [(filters)]="filters" />
+
+          <section>
+            <bb-results-header [label]="resultsLabel()">
+              <bb-sort-select [sort]="sort()" (sortChange)="onSortChange($event)" />
+            </bb-results-header>
+
+            @if (loading()) {
+              <bb-loader [label]="i18n.t('loading')" />
+            } @else if (visibleListings().length) {
+              <div class="list">
+                @for (listing of visibleListings(); track listing.id) {
+                  <bb-home-card [item]="listing" />
+                }
+              </div>
+            } @else {
+              <p class="bb-empty">{{ i18n.t('no_results_found') }}</p>
             }
-          </div>
-        } @else {
-          <p class="bb-empty">{{ i18n.t('no_results_found') }}</p>
-        }
+          </section>
+        </div>
       } @else {
         <bb-sell-view />
       }
@@ -71,30 +99,29 @@ import { SellView } from './sell-view';
   styles: `
     .stats {
       display: flex;
-      gap: 16px;
+      gap: 12px;
     }
 
-    .segmented {
-      margin-top: -20px;
-      position: relative;
-      z-index: 1;
+    .switcher {
+      padding-top: 20px;
+    }
+
+    /* Sur mobile le selecteur prend toute la largeur ; sur un grand ecran il
+       n'a pas besoin de plus que son contenu. */
+    .switcher bb-segmented {
+      display: block;
+      max-width: 460px;
     }
 
     .content {
-      padding-top: 24px;
-      padding-bottom: 40px;
+      padding-top: 20px;
+      padding-bottom: 48px;
     }
 
-    .grid {
-      display: grid;
-      gap: 15px;
-      grid-template-columns: 1fr;
-    }
-
-    @media (min-width: 900px) {
-      .grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
   `,
 })
@@ -109,6 +136,8 @@ export class HomePage {
   protected readonly mode = signal('buy');
   protected readonly filters = signal<ListingFilters>({});
 
+  protected readonly sort = computed(() => this.filters().sort ?? null);
+
   protected readonly modes = computed<SegmentedOption[]>(() => [
     {
       key: 'buy',
@@ -116,7 +145,12 @@ export class HomePage {
       icon: 'weight',
       color: 'var(--bb-primary-strong)',
     },
-    { key: 'sell', label: this.i18n.t('sell_weight'), icon: 'plus', color: 'var(--bb-success)' },
+    {
+      key: 'sell',
+      label: this.i18n.t('sell_weight'),
+      icon: 'plus',
+      color: 'var(--bb-success-strong)',
+    },
   ]);
 
   protected readonly firstName = computed(() => this.auth.userInfo()?.given_name ?? '');
@@ -132,7 +166,7 @@ export class HomePage {
     return listings.reduce((sum, item) => sum + item.pricePerKg, 0) / listings.length;
   });
 
-  /** Meme logique de filtre/tri que applyFilters() du mobile. */
+  /** Meme logique de filtre et de tri que applyFilters() du mobile. */
   protected readonly visibleListings = computed(() => {
     const { from, to, minPrice, maxPrice, minWeight, maxWeight, sort } = this.filters();
     const filtered = this.listings().filter(
@@ -164,8 +198,17 @@ export class HomePage {
     }
   });
 
+  protected readonly resultsLabel = computed(() => {
+    const count = this.visibleListings().length;
+    return this.i18n.t(count > 1 ? 'results_count' : 'results_count_one', { count });
+  });
+
   constructor() {
     this.fetchListings();
+  }
+
+  protected onSortChange(sort: SortOption | null): void {
+    this.filters.update((current) => ({ ...current, sort }));
   }
 
   private fetchListings(): void {

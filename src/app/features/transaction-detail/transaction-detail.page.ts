@@ -55,7 +55,7 @@ import { WeightSelector } from './weight-selector';
           <h1 class="bb-section-title">
             {{ listing()?.departureAirport }} → {{ listing()?.arrivalAirport }}
           </h1>
-          <span class="bb-body-2">{{ createdOn() }}</span>
+          <span class="bb-body-3">{{ createdOn() }}</span>
         </div>
         <bb-status-badge [status]="status()" />
       </div>
@@ -64,127 +64,148 @@ import { WeightSelector } from './weight-selector';
     @if (loading()) {
       <bb-loader [label]="i18n.t('loading')" />
     } @else if (listing(); as currentListing) {
-      <div class="bb-page content">
-        @if (progressStep() !== null) {
-          <bb-progress-card [step]="progressStep()!" [role]="role()" />
-        }
+      <div class="bb-page content bb-with-rail bb-with-rail--aside">
+        <section class="main">
+          <bb-status-card [status]="status()" [role]="role()" [transaction]="transaction()" />
 
-        <bb-party-card [listing]="currentListing" [transaction]="transaction()" />
+          <bb-party-card [listing]="currentListing" [transaction]="transaction()" />
 
-        <bb-status-card [status]="status()" [role]="role()" [transaction]="transaction()" />
-
-        @switch (status()) {
-          @case (statuses.BROWSE_LISTING) {
-            @if (role() === 'buyer') {
-              <bb-weight-selector [listing]="currentListing" [(weight)]="selectedWeight" />
-              <bb-button
-                [text]="i18n.t('send_reservation_request')"
-                [disabled]="submitting()"
-                (pressed)="sendReservationRequest()"
-              >
-                <bb-icon slot="right" name="send" [size]="24" />
-              </bb-button>
+          <!--
+            Contenu propre a l'etape : ce qui demande une saisie ou de la
+            lecture reste dans la colonne principale, les actions vont dans la
+            colonne collante a droite.
+          -->
+          @switch (status()) {
+            @case (statuses.BROWSE_LISTING) {
+              @if (role() === 'buyer') {
+                <bb-weight-selector [listing]="currentListing" [(weight)]="selectedWeight" />
+              }
             }
-          }
 
-          @case (statuses.REQUEST_REJECTED) {
-            <h2 class="bb-title-md centered">{{ i18n.t('try_a_different_amount') }}</h2>
-            <p class="bb-body centered">
-              {{
-                i18n.t('try_a_different_amount_description', {
-                  seller: sellerName(),
-                })
-              }}
-            </p>
-            <bb-weight-selector [listing]="currentListing" [(weight)]="selectedWeight" />
-            <bb-button
-              [text]="i18n.t('send_new_request')"
-              [disabled]="submitting()"
-              (pressed)="sendNewRequest()"
-            >
-              <bb-icon slot="right" name="send" [size]="24" />
-            </bb-button>
-          }
-
-          @case (statuses.RESERVATION_RECEIVED) {
-            <bb-button
-              [text]="i18n.t('accept_request')"
-              [disabled]="submitting()"
-              (pressed)="acceptRequest()"
-            >
-              <bb-icon slot="left" name="circle-check" [size]="24" />
-            </bb-button>
-            <bb-button
-              [text]="i18n.t('decline_request')"
-              tone="error"
-              [disabled]="submitting()"
-              (pressed)="declineRequest()"
-            >
-              <bb-icon slot="left" name="circle-x" [size]="24" />
-            </bb-button>
-          }
-
-          @case (statuses.PAYMENT_REQUIRED) {
-            <bb-button
-              [text]="i18n.t('complete_payment')"
-              [disabled]="submitting()"
-              (pressed)="completePayment()"
-            >
-              <bb-icon slot="left" name="credit-card" [size]="24" />
-            </bb-button>
-            <bb-button
-              [text]="i18n.t('cancel_transaction')"
-              tone="error"
-              [disabled]="submitting()"
-              (pressed)="cancelTransaction()"
-            >
-              <bb-icon slot="right" name="x" [size]="24" />
-            </bb-button>
-          }
-
-          @case (statuses.AWAITING_PAYMENT) {
-            <bb-button
-              [text]="i18n.t('cancel_transaction')"
-              tone="error"
-              [disabled]="submitting()"
-              (pressed)="cancelTransaction()"
-            >
-              <bb-icon slot="right" name="x" [size]="24" />
-            </bb-button>
-          }
-
-          @case (statuses.CONFIRMED) {
-            @if (role() === 'buyer') {
-              <bb-button
-                [text]="i18n.t('mark_as_completed')"
-                tone="success"
-                [disabled]="submitting()"
-                (pressed)="markAsCompleted()"
-              />
-            }
-          }
-
-          @case (statuses.COMPLETED) {
-            @for (review of reviews(); track review.id) {
-              <div class="bb-card">
-                <bb-review-card
-                  [review]="review"
-                  [editable]="review.reviewerId === currentUserSub()"
-                  (edit)="editReview($event)"
-                />
+            @case (statuses.REQUEST_REJECTED) {
+              <div class="retry">
+                <h2 class="bb-title-md">{{ i18n.t('try_a_different_amount') }}</h2>
+                <p class="bb-body">
+                  {{ i18n.t('try_a_different_amount_description', { seller: sellerName() }) }}
+                </p>
               </div>
+              <bb-weight-selector [listing]="currentListing" [(weight)]="selectedWeight" />
             }
-            @if (canReview()) {
-              <bb-button
-                [text]="i18n.t('put_in_review')"
-                tone="warning"
-                (pressed)="openReviewModal()"
-              >
-                <bb-icon slot="left" name="star" [size]="24" />
-              </bb-button>
+
+            @case (statuses.COMPLETED) {
+              @for (review of reviews(); track review.id) {
+                <div class="bb-card">
+                  <bb-review-card
+                    [review]="review"
+                    [editable]="review.reviewerId === currentUserSub()"
+                    (edit)="editReview($event)"
+                  />
+                </div>
+              }
             }
           }
-        }
+        </section>
+
+        <aside class="side bb-rail-sticky">
+          @if (progressStep() !== null) {
+            <bb-progress-card [step]="progressStep()!" [role]="role()" />
+          }
+
+          <!-- Actions de l'etape : toujours visibles, sans avoir a redescendre. -->
+          @switch (status()) {
+            @case (statuses.BROWSE_LISTING) {
+              @if (role() === 'buyer') {
+                <bb-button
+                  [text]="i18n.t('send_reservation_request')"
+                  [disabled]="submitting()"
+                  (pressed)="sendReservationRequest()"
+                >
+                  <bb-icon slot="right" name="send" [size]="20" />
+                </bb-button>
+              }
+            }
+
+            @case (statuses.REQUEST_REJECTED) {
+              <bb-button
+                [text]="i18n.t('send_new_request')"
+                [disabled]="submitting()"
+                (pressed)="sendNewRequest()"
+              >
+                <bb-icon slot="right" name="send" [size]="20" />
+              </bb-button>
+            }
+
+            @case (statuses.RESERVATION_RECEIVED) {
+              <bb-button
+                [text]="i18n.t('accept_request')"
+                [disabled]="submitting()"
+                (pressed)="acceptRequest()"
+              >
+                <bb-icon slot="left" name="circle-check" [size]="20" />
+              </bb-button>
+              <bb-button
+                [text]="i18n.t('decline_request')"
+                tone="error"
+                [disabled]="submitting()"
+                (pressed)="declineRequest()"
+              >
+                <bb-icon slot="left" name="circle-x" [size]="20" />
+              </bb-button>
+            }
+
+            @case (statuses.PAYMENT_REQUIRED) {
+              <bb-button
+                [text]="i18n.t('complete_payment')"
+                [disabled]="submitting()"
+                (pressed)="completePayment()"
+              >
+                <bb-icon slot="left" name="credit-card" [size]="20" />
+              </bb-button>
+              <bb-button
+                [text]="i18n.t('cancel_transaction')"
+                tone="error"
+                [disabled]="submitting()"
+                (pressed)="cancelTransaction()"
+              >
+                <bb-icon slot="right" name="x" [size]="20" />
+              </bb-button>
+            }
+
+            @case (statuses.AWAITING_PAYMENT) {
+              <bb-button
+                [text]="i18n.t('cancel_transaction')"
+                tone="error"
+                [disabled]="submitting()"
+                (pressed)="cancelTransaction()"
+              >
+                <bb-icon slot="right" name="x" [size]="20" />
+              </bb-button>
+            }
+
+            @case (statuses.CONFIRMED) {
+              @if (role() === 'buyer') {
+                <bb-button
+                  [text]="i18n.t('mark_as_completed')"
+                  tone="success"
+                  [disabled]="submitting()"
+                  (pressed)="markAsCompleted()"
+                />
+              }
+            }
+
+            @case (statuses.COMPLETED) {
+              @if (canReview()) {
+                <bb-button
+                  [text]="i18n.t('put_in_review')"
+                  tone="warning"
+                  (pressed)="openReviewModal()"
+                >
+                  <bb-icon slot="left" name="star" [size]="20" />
+                </bb-button>
+              }
+            }
+          }
+        </aside>
       </div>
 
       <bb-review-modal
@@ -193,8 +214,8 @@ import { WeightSelector } from './weight-selector';
         (submitted)="submitReview($event)"
       />
     } @else {
-      <p class="bb-empty">{{ i18n.t('no_results_found') }}</p>
       <div class="bb-page">
+        <p class="bb-empty">{{ i18n.t('no_results_found') }}</p>
         <a class="bb-highlight" routerLink="/home">{{ i18n.t('home') }}</a>
       </div>
     }
@@ -209,9 +230,9 @@ import { WeightSelector } from './weight-selector';
     }
 
     .inner {
-      max-width: 1120px;
+      max-width: 1200px;
       margin: 0 auto;
-      padding: 12px 16px;
+      padding: 12px 20px;
       display: flex;
       align-items: center;
       gap: 12px;
@@ -229,17 +250,32 @@ import { WeightSelector } from './weight-selector';
     }
 
     .content {
-      padding-top: 16px;
-      padding-bottom: 40px;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      max-width: 720px;
+      padding-top: 24px;
+      padding-bottom: 48px;
     }
 
-    .centered {
-      text-align: center;
+    .main,
+    .side {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .retry {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .retry h2,
+    .retry p {
       margin: 0;
+    }
+
+    @media (min-width: 1024px) {
+      .bb-with-rail--aside {
+        grid-template-columns: minmax(0, 1fr) 340px;
+      }
     }
   `,
 })

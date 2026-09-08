@@ -103,10 +103,15 @@ interface StatusView {
 
     .centered {
       text-align: center;
+      /* Longueur de ligne lisible : la colonne est bien plus large que sur
+         mobile, le texte ne doit pas la remplir. */
+      max-width: 52ch;
+      margin-inline: auto;
     }
 
     .bottom {
       width: 100%;
+      max-width: 560px;
       padding: 10px;
       border-radius: var(--bb-radius-sm);
       background: var(--bb-title-inverse);

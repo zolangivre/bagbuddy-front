@@ -176,9 +176,9 @@ export class AppNav {
       path: '/transactions',
       labelKey: 'transactions',
       icon: 'credit-card',
-      color: 'var(--bb-success)',
+      color: 'var(--bb-success-strong)',
     },
-    { path: '/profile', labelKey: 'profile', icon: 'user', color: 'var(--bb-warning)' },
+    { path: '/profile', labelKey: 'profile', icon: 'user', color: 'var(--bb-warning-strong)' },
   ];
 
   protected readonly initials = computed(() => initialsOf(this.auth.userInfo()?.name, '?'));

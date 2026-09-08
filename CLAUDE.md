@@ -66,14 +66,44 @@ Voir [README.md](README.md) pour lancer les deux ensemble.
 
 ### Design
 
-Le design vient de l'app mobile : `theme/Colors.js`, `theme/Fonts.js` et
-`theme/Styles.js` sont transposés en tokens CSS dans [src/styles.css](src/styles.css)
-(`--bb-*`), et chaque composant partagé porte en commentaire le fichier mobile
-dont il est le portage. Les teintes de marque (cyan `#0EA5E9`, vert, rouge,
-ambre) ne passent pas WCAG AA en texte : chaque rôle a donc une déclinaison
-« encre » (`--bb-primary`, adaptée au thème) pour le texte et les icônes, et une
-déclinaison « surface » (`--bb-primary-strong`) pour les fonds qui portent du
-texte blanc. Les aplats teintés (`--bb-cyan-a10`, etc.) gardent la teinte brute.
+La direction artistique vient de l'app mobile — bleu ciel de marque, cartes à
+coins 16px, pastilles de statut teintées, bandeau dégradé, codes aéroport comme
+motif récurrent — mais la mise en page est pensée pour le web, pas transposée
+telle quelle. `theme/Colors.js`, `theme/Fonts.js` et `theme/Styles.js` sont
+devenus des tokens CSS dans [src/styles.css](src/styles.css) (`--bb-*`), et
+chaque composant partagé porte en commentaire le fichier mobile dont il est le
+portage, avec ce qui a été adapté et pourquoi.
+
+Les teintes de marque (cyan `#0EA5E9`, vert, rouge, ambre) ne passent pas WCAG
+AA en texte : chaque rôle a donc une déclinaison « encre » (`--bb-primary`,
+adaptée au thème — elle s'éclaircit en sombre) pour le texte et les icônes, et
+une déclinaison « surface » (`--bb-primary-strong`, identique dans les deux
+thèmes) pour les fonds qui portent du texte blanc. **Une couleur passée en fond
+d'un élément à texte blanc doit toujours être la variante `-strong`** : c'est
+l'erreur qui revient (segment actif, onglet de nav, bouton plein). Les aplats
+teintés (`--bb-cyan-a10`, etc.) gardent la teinte brute.
+
+Typographie : Barlow, plus Barlow Condensed pour les codes aéroport, horaires et
+montants (classes `.bb-code`, `.bb-time`, `.bb-amount`, chiffres tabulaires).
+C'est une grotesque de signalétique de transport — même caractère neutre que la
+police système du mobile, choisie pour le sujet.
+
+Adaptations web à conserver :
+
+- l'annonce est une **carte d'embarquement** horizontale (trajet / perforation /
+  talon), qui repasse en pile sous 900px — c'est le seul endroit où le design
+  prend un risque, le reste reste sobre ;
+- les filtres sont un **rail persistant** à partir de 1024px et une modale en
+  dessous ([shared/ui/filters.ts](src/app/shared/ui/filters.ts)) ;
+- les listes de transactions sont **tabulaires** : les colonnes viennent du token
+  `--bb-tx-columns`, partagé par l'en-tête et les lignes — modifier l'un sans
+  l'autre casse l'alignement ;
+- détail de transaction, profil et formulaire d'annonce sont en **deux colonnes**
+  avec une colonne collante (`.bb-rail-sticky`) qui garde les actions visibles ;
+- les sélecteurs de mode (`bb-segmented`) sont bornés en largeur sur desktop :
+  pleine largeur est un réflexe mobile ;
+- le fond de page est `#F8FAFC` et les cartes blanches, là où le mobile est tout
+  blanc — sans ça les cartes disparaissent sur grand écran.
 
 ### Auth
 

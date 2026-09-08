@@ -6,9 +6,10 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { ListingFilters, Transaction } from '../../core/models';
 import { TRANSACTION_STATUS } from '../../core/transaction-status';
 import { Badge } from '../../shared/ui/badge';
-import { FilterBar } from '../../shared/ui/filter-bar';
+import { Filters } from '../../shared/ui/filters';
 import { Loader } from '../../shared/ui/loader';
 import { PageHeader } from '../../shared/ui/page-header';
+import { ResultsHeader } from '../../shared/ui/results-header';
 import { Segmented, SegmentedOption } from '../../shared/ui/segmented';
 import { StatCard } from '../../shared/ui/stat-card';
 import { TransactionCard } from './transaction-card';
@@ -16,19 +17,21 @@ import { TransactionCard } from './transaction-card';
 /** Portage de app/(tabs)/transactions.js. */
 @Component({
   selector: 'bb-transactions-page',
-  imports: [PageHeader, StatCard, Badge, FilterBar, Segmented, TransactionCard, Loader],
+  imports: [
+    PageHeader,
+    StatCard,
+    Badge,
+    Filters,
+    ResultsHeader,
+    Segmented,
+    TransactionCard,
+    Loader,
+  ],
   template: `
     <bb-page-header
       [title]="i18n.t('transactions_title')"
       [subtitle]="i18n.t('transactions_subtitle')"
     >
-      <bb-badge
-        slot="aside"
-        [text]="transactions().length + ' ' + i18n.t('total')"
-        background="rgba(0, 0, 0, 0.18)"
-        color="var(--bb-white)"
-      />
-
       <div class="stats">
         <bb-stat-card
           icon="trending-up"
@@ -42,59 +45,96 @@ import { TransactionCard } from './transaction-card';
         />
       </div>
 
-      <bb-filter-bar [(filters)]="filters" [showStatusFilter]="true" />
+      <bb-badge
+        slot="aside"
+        [text]="transactions().length + ' ' + i18n.t('total')"
+        background="rgba(0, 0, 0, 0.18)"
+        color="var(--bb-white)"
+      />
     </bb-page-header>
 
-    <div class="bb-page segmented">
+    <div class="bb-page switcher">
       <bb-segmented [options]="modes()" [(value)]="mode" [label]="i18n.t('transactions')" />
     </div>
 
     <div class="bb-page content">
-      @if (loading()) {
-        <bb-loader [label]="i18n.t('loading')" />
-      } @else if (visible().length) {
-        <div class="grid">
-          @for (transaction of visible(); track transaction.id) {
-            <bb-transaction-card [transaction]="transaction" />
+      <div class="bb-with-rail">
+        <bb-filters [(filters)]="filters" [showStatusFilter]="mode() === 'active'" />
+
+        <section>
+          <bb-results-header [label]="resultsLabel()" />
+
+          @if (loading()) {
+            <bb-loader [label]="i18n.t('loading')" />
+          } @else if (visible().length) {
+            <div class="list-head" aria-hidden="true">
+              <span class="bb-body-3">{{ i18n.t('buyer') }} / {{ i18n.t('seller') }}</span>
+              <span class="bb-body-3">{{ i18n.t('departure') }}</span>
+              <span class="bb-body-3">{{ i18n.t('weight') }}</span>
+              <span class="bb-body-3 right">{{ i18n.t('total') }}</span>
+              <span class="bb-body-3 right">{{ i18n.t('status') }}</span>
+            </div>
+
+            <div class="list">
+              @for (transaction of visible(); track transaction.id) {
+                <bb-transaction-card [transaction]="transaction" />
+              }
+            </div>
+          } @else {
+            <p class="bb-empty">
+              {{
+                mode() === 'active'
+                  ? i18n.t('no_active_transactions')
+                  : i18n.t('no_completed_transactions')
+              }}
+            </p>
           }
-        </div>
-      } @else {
-        <p class="bb-empty">
-          {{
-            mode() === 'active'
-              ? i18n.t('no_active_transactions')
-              : i18n.t('no_completed_transactions')
-          }}
-        </p>
-      }
+        </section>
+      </div>
     </div>
   `,
   styles: `
     .stats {
       display: flex;
-      gap: 16px;
+      gap: 12px;
     }
 
-    .segmented {
-      margin-top: -20px;
-      position: relative;
-      z-index: 1;
+    .switcher {
+      padding-top: 20px;
+    }
+
+    /* Sur mobile le selecteur prend toute la largeur ; sur un grand ecran il
+       n'a pas besoin de plus que son contenu. */
+    .switcher bb-segmented {
+      display: block;
+      max-width: 460px;
     }
 
     .content {
-      padding-top: 24px;
-      padding-bottom: 40px;
+      padding-top: 20px;
+      padding-bottom: 48px;
     }
 
-    .grid {
-      display: grid;
-      gap: 15px;
-      grid-template-columns: 1fr;
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .list-head {
+      display: none;
     }
 
     @media (min-width: 900px) {
-      .grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+      .list-head {
+        display: grid;
+        grid-template-columns: var(--bb-tx-columns);
+        gap: 20px;
+        padding: 0 20px 8px;
+      }
+
+      .list-head .right {
+        text-align: right;
       }
     }
   `,
@@ -121,7 +161,7 @@ export class TransactionsPage {
       key: 'completed',
       label: this.i18n.t('completed'),
       icon: 'calendar',
-      color: 'var(--bb-success)',
+      color: 'var(--bb-success-strong)',
     },
   ]);
 
@@ -170,6 +210,11 @@ export class TransactionsPage {
         (this.mode() !== 'active' || !status || itemStatus === status)
       );
     });
+  });
+
+  protected readonly resultsLabel = computed(() => {
+    const count = this.visible().length;
+    return this.i18n.t(count > 1 ? 'transactions_count' : 'transactions_count_one', { count });
   });
 
   constructor() {

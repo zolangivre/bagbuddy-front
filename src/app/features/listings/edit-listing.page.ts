@@ -48,51 +48,53 @@ interface ListingForm {
     @if (loading()) {
       <bb-loader [label]="i18n.t('loading')" />
     } @else {
-      <form class="bb-page content" (submit)="save($event)">
-        <section class="bb-card">
-          <h2 class="bb-card-title">
-            <bb-icon name="plane" [size]="20" />
-            {{ i18n.t('flight_information') }}
-          </h2>
+      <form class="bb-page content bb-with-rail bb-with-rail--aside" (submit)="save($event)">
+        <div class="fields-column">
+          <section class="bb-card">
+            <h2 class="bb-card-title">
+              <bb-icon name="plane" [size]="20" />
+              {{ i18n.t('flight_information') }}
+            </h2>
 
-          <div class="fields">
-            <div class="row">
-              <bb-airport-input
-                [formField]="listingForm.departure"
-                [label]="i18n.t('departure')"
-                placeholder="JFK"
-                [error]="errorOf(listingForm.departure)"
-              />
-              <bb-airport-input
-                [formField]="listingForm.arrival"
-                [label]="i18n.t('arrival')"
-                placeholder="CDG"
-                [error]="errorOf(listingForm.arrival)"
-              />
+            <div class="fields">
+              <div class="row">
+                <bb-airport-input
+                  [formField]="listingForm.departure"
+                  [label]="i18n.t('departure')"
+                  placeholder="JFK"
+                  [error]="errorOf(listingForm.departure)"
+                />
+                <bb-airport-input
+                  [formField]="listingForm.arrival"
+                  [label]="i18n.t('arrival')"
+                  placeholder="CDG"
+                  [error]="errorOf(listingForm.arrival)"
+                />
+              </div>
+
+              <div class="row">
+                <bb-text-field
+                  [formField]="listingForm.departureDate"
+                  type="datetime-local"
+                  [label]="i18n.t('flight_date_departure')"
+                  [error]="errorOf(listingForm.departureDate)"
+                />
+                <bb-text-field
+                  [formField]="listingForm.arrivalDate"
+                  type="datetime-local"
+                  [label]="i18n.t('flight_date_arrival')"
+                  [error]="arrivalDateError()"
+                />
+              </div>
             </div>
+          </section>
 
-            <bb-text-field
-              [formField]="listingForm.departureDate"
-              type="datetime-local"
-              [label]="i18n.t('flight_date_departure')"
-              [error]="errorOf(listingForm.departureDate)"
-            />
-            <bb-text-field
-              [formField]="listingForm.arrivalDate"
-              type="datetime-local"
-              [label]="i18n.t('flight_date_arrival')"
-              [error]="arrivalDateError()"
-            />
-          </div>
-        </section>
+          <section class="bb-card">
+            <h2 class="bb-card-title">
+              <bb-icon name="weight" [size]="20" />
+              {{ i18n.t('weight_and_pricing') }}
+            </h2>
 
-        <section class="bb-card">
-          <h2 class="bb-card-title">
-            <bb-icon name="weight" [size]="20" />
-            {{ i18n.t('weight_and_pricing') }}
-          </h2>
-
-          <div class="fields">
             <div class="row">
               <bb-text-field
                 [formField]="listingForm.availableKilos"
@@ -109,73 +111,79 @@ interface ListingForm {
                 [error]="errorOf(listingForm.pricePerKg)"
               />
             </div>
+          </section>
 
-            <div class="total">
-              <div class="line">
-                <span class="bb-body">{{ i18n.t('total_value') }}</span>
-                <strong class="bb-number">{{ currency.format(totals().total) }}</strong>
-              </div>
-              <div class="line">
-                <span class="bb-body-2">
-                  {{ model().availableKilos }}kg × {{ currency.format(model().pricePerKg) }}/kg
-                </span>
-                <span class="bb-body-2">
-                  {{ i18n.t('fee') }} : {{ currency.format(totals().fee) }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
+          <section class="bb-card">
+            <h2 class="bb-card-title">
+              <bb-icon name="file-text" [size]="20" />
+              {{ i18n.t('conditions_and_notes') }}
+            </h2>
+            <bb-text-field
+              [formField]="listingForm.conditions"
+              [label]="i18n.t('special_conditions_optional')"
+              [placeholder]="i18n.t('special_conditions_optional_placeholder')"
+              [multiline]="true"
+              [rows]="6"
+            />
+          </section>
+        </div>
 
-        <section class="bb-card">
-          <h2 class="bb-card-title">
-            <bb-icon name="file-text" [size]="20" />
-            {{ i18n.t('conditions_and_notes') }}
-          </h2>
-          <bb-text-field
-            [formField]="listingForm.conditions"
-            [label]="i18n.t('special_conditions_optional')"
-            [placeholder]="i18n.t('special_conditions_optional_placeholder')"
-            [multiline]="true"
-            [rows]="6"
-          />
-        </section>
+        <!--
+          Recapitulatif collant : le total se met a jour pendant la saisie et
+          reste visible avec le bouton d'envoi, au lieu d'etre en bas du
+          formulaire comme sur mobile.
+        -->
+        <aside class="side bb-rail-sticky">
+          <section class="summary">
+            <h2 class="bb-card-title">{{ i18n.t('total_value') }}</h2>
+            <strong class="bb-amount total">{{ currency.format(totals().total) }}</strong>
+            <p class="bb-body-2 detail">
+              {{ model().availableKilos }} kg × {{ currency.format(model().pricePerKg) }}/kg
+            </p>
+            <p class="bb-body-3 detail">
+              {{ i18n.t('fee') }} : {{ currency.format(totals().fee) }}
+            </p>
 
-        <section class="tips">
-          <h2 class="bb-card-title tips-title">
-            <bb-icon name="luggage" [size]="20" />
-            {{ i18n.t('listing_tips') }}
-          </h2>
-          <ul>
-            <li><bb-icon name="clock" [size]="20" />{{ i18n.t('listing_tips_1') }}</li>
-            <li><bb-icon name="users" [size]="20" />{{ i18n.t('listing_tips_2') }}</li>
-            <li><bb-icon name="dollar-sign" [size]="20" />{{ i18n.t('listing_tips_3') }}</li>
-          </ul>
-        </section>
+            <bb-button
+              type="submit"
+              [text]="listingId() ? i18n.t('update_listing') : i18n.t('create_listing')"
+              [disabled]="saving()"
+            />
+          </section>
 
-        <bb-button
-          type="submit"
-          [text]="listingId() ? i18n.t('update_listing') : i18n.t('create_listing')"
-          [disabled]="saving()"
-        />
+          <section class="tips">
+            <h2 class="bb-card-title tips-title">
+              <bb-icon name="luggage" [size]="20" />
+              {{ i18n.t('listing_tips') }}
+            </h2>
+            <ul>
+              <li><bb-icon name="clock" [size]="18" />{{ i18n.t('listing_tips_1') }}</li>
+              <li><bb-icon name="users" [size]="18" />{{ i18n.t('listing_tips_2') }}</li>
+              <li><bb-icon name="dollar-sign" [size]="18" />{{ i18n.t('listing_tips_3') }}</li>
+            </ul>
+          </section>
+        </aside>
       </form>
     }
   `,
   styles: `
     .content {
-      padding-top: 16px;
-      padding-bottom: 40px;
+      padding-top: 24px;
+      padding-bottom: 48px;
+    }
+
+    .fields-column,
+    .side {
       display: flex;
       flex-direction: column;
-      gap: 24px;
-      max-width: 720px;
+      gap: 20px;
     }
 
     h2 {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin: 0 0 15px;
+      margin: 0 0 16px;
     }
 
     h2 bb-icon {
@@ -190,29 +198,40 @@ interface ListingForm {
 
     .row {
       display: flex;
-      gap: 12px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .summary {
+      background: var(--bb-card);
+      border-radius: var(--bb-radius);
+      padding: 24px;
+      box-shadow: var(--bb-shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .summary h2 {
+      margin: 0;
     }
 
     .total {
-      border-radius: var(--bb-radius);
-      background: var(--bb-subtle);
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+      color: var(--bb-primary);
     }
 
-    .line {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+    .detail {
+      margin: 0;
+    }
+
+    .summary bb-button {
+      margin-top: 14px;
     }
 
     .tips {
       background: var(--bb-cyan-a10);
       border-radius: var(--bb-radius);
-      padding: var(--bb-card-padding);
+      padding: 24px;
     }
 
     .tips-title {
@@ -225,19 +244,21 @@ interface ListingForm {
       padding: 0;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
     }
 
     .tips li {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 12px;
       font-size: var(--bb-fs-body-2);
+      color: var(--bb-text);
     }
 
     .tips li bb-icon {
       color: var(--bb-primary);
       flex: none;
+      margin-top: 2px;
     }
   `,
 })

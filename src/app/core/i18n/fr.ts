@@ -376,4 +376,11 @@ export const fr: Record<keyof typeof en, string> = {
   edit_review: "Modifier l'avis",
   payment_without_stripe_message:
     'Le service Stripe est désactivé en développement local. Confirmer marque la transaction comme payée, sans débit réel.',
+  results_count_one: '{{count}} trajet disponible',
+  results_count: '{{count}} trajets disponibles',
+  weight: 'Poids',
+  transactions_count_one: '{{count}} transaction',
+  transactions_count: '{{count}} transactions',
+  sample_conditions: "Pas de liquides, rendez-vous au comptoir d'enregistrement.",
+  status: 'Statut',
 };

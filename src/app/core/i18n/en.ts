@@ -371,4 +371,11 @@ export const en = {
   edit_review: 'Edit review',
   payment_without_stripe_message:
     'The Stripe service is disabled in local development. Confirming marks the transaction as paid without a real charge.',
+  results_count_one: '{{count}} route available',
+  results_count: '{{count}} routes available',
+  weight: 'Weight',
+  transactions_count_one: '{{count}} transaction',
+  transactions_count: '{{count}} transactions',
+  sample_conditions: 'No liquids, meet at the check-in desk.',
+  status: 'Status',
 };

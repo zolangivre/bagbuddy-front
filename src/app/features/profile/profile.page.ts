@@ -37,11 +37,7 @@ import { StatCard } from '../../shared/ui/stat-card';
     Icon,
   ],
   template: `
-    <bb-page-header
-      [title]="i18n.t('profile')"
-      [subtitle]="i18n.t('manage_your_account')"
-      [overlap]="60"
-    >
+    <bb-page-header [title]="i18n.t('profile')" [subtitle]="i18n.t('manage_your_account')">
       <bb-icon-button
         slot="aside"
         icon="square-pen"
@@ -52,28 +48,28 @@ import { StatCard } from '../../shared/ui/stat-card';
       />
     </bb-page-header>
 
-    <div class="bb-page content">
-      <section class="bb-card identity">
-        <div class="who">
-          <div class="avatar-col">
-            <bb-avatar [initials]="initials()" [size]="80" />
-            <bb-badge
-              [text]="user()?.email_verified ? i18n.t('verified') : i18n.t('not_verified')"
-              [background]="user()?.email_verified ? 'var(--bb-green-a10)' : 'var(--bb-red-a10)'"
-              [color]="user()?.email_verified ? 'var(--bb-success)' : 'var(--bb-error)'"
-            >
-              <bb-icon name="shield" [size]="16" />
-            </bb-badge>
-          </div>
+    <div class="bb-page content bb-with-rail">
+      <!--
+        Sur mobile la carte d'identite passait au-dessus du contenu et defilait
+        avec lui. Sur grand ecran elle reste en colonne, visible pendant qu'on
+        parcourt les annonces, les avis ou les reglages.
+      -->
+      <aside class="identity bb-rail-sticky">
+        <bb-avatar [initials]="initials()" [size]="72" />
+        <h2 class="bb-title-md">{{ user()?.name }}</h2>
+        <p class="bb-body-2 email">{{ user()?.email }}</p>
 
-          <div class="details">
-            <h2 class="bb-title-md">{{ user()?.name }}</h2>
-            <p class="bb-subtitle">{{ user()?.email }}</p>
-            <p class="bb-body-2">{{ transactionCount() ?? 0 }} {{ i18n.t('transactions_1') }}</p>
-          </div>
-        </div>
+        <bb-badge
+          [text]="user()?.email_verified ? i18n.t('verified') : i18n.t('not_verified')"
+          [background]="user()?.email_verified ? 'var(--bb-green-a10)' : 'var(--bb-red-a10)'"
+          [color]="user()?.email_verified ? 'var(--bb-success)' : 'var(--bb-error)'"
+        >
+          <bb-icon name="shield" [size]="16" />
+        </bb-badge>
 
-        <p class="bb-subtitle bio">{{ i18n.t('bio') }} : {{ user()?.bio }}</p>
+        @if (user()?.bio) {
+          <p class="bb-body-2 bio">{{ user()?.bio }}</p>
+        }
 
         <div class="stats">
           <bb-stat-card
@@ -97,201 +93,208 @@ import { StatCard } from '../../shared/ui/stat-card';
             labelColor="var(--bb-text)"
           />
         </div>
-      </section>
 
-      <bb-segmented [options]="tabs()" [(value)]="tab" [label]="i18n.t('profile')" />
+        <p class="bb-body-3 count">{{ transactionCount() ?? 0 }} {{ i18n.t('transactions_1') }}</p>
+      </aside>
 
-      @switch (tab()) {
-        @case ('listings') {
-          <section class="bb-card">
-            <div class="section-head">
-              <h2 class="bb-card-title">{{ i18n.t('active_listings') }}</h2>
-              <a class="bb-highlight" routerLink="/listings">{{ i18n.t('view_all') }}</a>
-            </div>
+      <section class="panel">
+        <bb-segmented [options]="tabs()" [(value)]="tab" [label]="i18n.t('profile')" />
 
-            @if (loadingListings()) {
-              <bb-loader [size]="36" [label]="i18n.t('loading')" />
-            } @else if (listings().length) {
-              <ul class="rows">
-                @for (listing of listings().slice(0, 5); track listing.id) {
-                  <li>
-                    <div class="row-text">
-                      <span class="bb-section-title">
-                        {{ listing.departureAirport }} → {{ listing.arrivalAirport }}
+        @switch (tab()) {
+          @case ('listings') {
+            <section class="bb-card">
+              <div class="section-head">
+                <h2 class="bb-card-title">{{ i18n.t('active_listings') }}</h2>
+                <a class="bb-highlight" routerLink="/listings">{{ i18n.t('view_all') }}</a>
+              </div>
+
+              @if (loadingListings()) {
+                <bb-loader [size]="36" [label]="i18n.t('loading')" />
+              } @else if (listings().length) {
+                <ul class="rows">
+                  @for (listing of listings().slice(0, 5); track listing.id) {
+                    <li>
+                      <span class="row-route">
+                        <span class="bb-code code">{{ listing.departureAirport }}</span>
+                        <bb-icon name="arrow-right" [size]="16" />
+                        <span class="bb-code code">{{ listing.arrivalAirport }}</span>
                       </span>
-                      <span class="bb-body-2">
-                        {{ listing.remainingWeight }} kg •
-                        {{ currency.format(listing.pricePerKg) }}/kg
+                      <span class="row-meta">
+                        <span class="bb-body-2">
+                          {{ listing.remainingWeight }} kg ·
+                          {{ currency.format(listing.pricePerKg) }}/kg
+                        </span>
+                        <span class="bb-body-3">
+                          {{ date(listing.departureDate) }} → {{ date(listing.arrivalDate) }}
+                        </span>
                       </span>
-                      <span class="bb-body-2">
-                        {{ date(listing.departureDate) }} → {{ date(listing.arrivalDate) }}
-                      </span>
-                    </div>
-                    <a
-                      class="edit"
-                      [routerLink]="['/listings', listing.id, 'edit']"
-                      [attr.aria-label]="i18n.t('edit_listing')"
-                    >
-                      <bb-icon name="pencil" [size]="20" />
-                    </a>
-                  </li>
-                }
-              </ul>
-            } @else {
-              <p class="bb-empty">{{ i18n.t('no_active_listings') }}</p>
-            }
-          </section>
-        }
+                      <a
+                        class="edit"
+                        [routerLink]="['/listings', listing.id, 'edit']"
+                        [attr.aria-label]="i18n.t('edit_listing')"
+                      >
+                        <bb-icon name="pencil" [size]="20" />
+                      </a>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="bb-empty">{{ i18n.t('no_active_listings') }}</p>
+              }
+            </section>
+          }
 
-        @case ('reviews') {
-          <section class="bb-card">
-            <div class="section-head">
-              <h2 class="bb-card-title">{{ i18n.t('reviews') }}</h2>
-              <a class="bb-highlight" routerLink="/reviews">{{ i18n.t('view_all') }}</a>
-            </div>
+          @case ('reviews') {
+            <section class="bb-card">
+              <div class="section-head">
+                <h2 class="bb-card-title">{{ i18n.t('reviews') }}</h2>
+                <a class="bb-highlight" routerLink="/reviews">{{ i18n.t('view_all') }}</a>
+              </div>
 
-            @if (loadingReviews()) {
-              <bb-loader [size]="36" [label]="i18n.t('loading')" />
-            } @else if (reviews().length) {
-              <ul class="rows">
-                @for (review of reviews().slice(0, 5); track review.id) {
-                  <li class="review-row">
-                    <bb-review-card [review]="review" />
-                  </li>
-                }
-              </ul>
-            } @else {
-              <p class="bb-empty">{{ i18n.t('no_reviews_yet') }}</p>
-            }
-          </section>
-        }
+              @if (loadingReviews()) {
+                <bb-loader [size]="36" [label]="i18n.t('loading')" />
+              } @else if (reviews().length) {
+                <ul class="rows rows--plain">
+                  @for (review of reviews().slice(0, 5); track review.id) {
+                    <li><bb-review-card [review]="review" /></li>
+                  }
+                </ul>
+              } @else {
+                <p class="bb-empty">{{ i18n.t('no_reviews_yet') }}</p>
+              }
+            </section>
+          }
 
-        @case ('settings') {
-          <section class="bb-card settings">
-            <h2 class="bb-card-title">{{ i18n.t('settings') }}</h2>
+          @case ('settings') {
+            <section class="bb-card settings">
+              <h2 class="bb-card-title">{{ i18n.t('settings') }}</h2>
 
-            <div class="setting">
-              <bb-icon [name]="theme.scheme() === 'dark' ? 'moon' : 'sun'" [size]="24" />
-              <span class="setting-text">
-                <span class="bb-section-title">{{ i18n.t('dark_mode') }}</span>
-                <span class="bb-body-2">{{ i18n.t('toggle_dark_mode') }}</span>
-              </span>
-              <button
-                type="button"
-                role="switch"
-                class="switch"
-                [attr.aria-checked]="theme.scheme() === 'dark'"
-                [attr.aria-label]="i18n.t('dark_mode')"
-                (click)="theme.toggle()"
-              >
-                <span class="knob"></span>
+              <div class="setting">
+                <bb-icon [name]="theme.scheme() === 'dark' ? 'moon' : 'sun'" [size]="24" />
+                <span class="setting-text">
+                  <span class="bb-section-title">{{ i18n.t('dark_mode') }}</span>
+                  <span class="bb-body-2">{{ i18n.t('toggle_dark_mode') }}</span>
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  class="switch"
+                  [attr.aria-checked]="theme.scheme() === 'dark'"
+                  [attr.aria-label]="i18n.t('dark_mode')"
+                  (click)="theme.toggle()"
+                >
+                  <span class="knob"></span>
+                </button>
+              </div>
+
+              <div class="setting">
+                <bb-icon name="languages" [size]="24" />
+                <span class="bb-section-title grow">{{ i18n.t('change_language') }}</span>
+                <div class="options">
+                  <button
+                    type="button"
+                    [class.active]="i18n.language() === 'en'"
+                    [attr.aria-pressed]="i18n.language() === 'en'"
+                    (click)="i18n.changeLanguage('en')"
+                  >
+                    EN
+                  </button>
+                  <button
+                    type="button"
+                    [class.active]="i18n.language() === 'fr'"
+                    [attr.aria-pressed]="i18n.language() === 'fr'"
+                    (click)="i18n.changeLanguage('fr')"
+                  >
+                    FR
+                  </button>
+                </div>
+              </div>
+
+              <div class="setting">
+                <bb-icon name="banknote" [size]="24" />
+                <span class="bb-section-title grow">{{ i18n.t('change_currency') }}</span>
+                <div class="options">
+                  <button
+                    type="button"
+                    [class.active]="currency.currency() === 'USD'"
+                    [attr.aria-pressed]="currency.currency() === 'USD'"
+                    (click)="currency.changeCurrency('USD')"
+                  >
+                    $
+                  </button>
+                  <button
+                    type="button"
+                    [class.active]="currency.currency() === 'EUR'"
+                    [attr.aria-pressed]="currency.currency() === 'EUR'"
+                    (click)="currency.changeCurrency('EUR')"
+                  >
+                    €
+                  </button>
+                </div>
+              </div>
+
+              <button type="button" class="logout" (click)="logout()">
+                <bb-icon name="log-out" [size]="24" />
+                {{ i18n.t('log_out') }}
               </button>
-            </div>
-
-            <div class="setting">
-              <bb-icon name="languages" [size]="24" />
-              <span class="bb-section-title grow">{{ i18n.t('change_language') }}</span>
-              <div class="options">
-                <button
-                  type="button"
-                  [class.active]="i18n.language() === 'en'"
-                  [attr.aria-pressed]="i18n.language() === 'en'"
-                  (click)="i18n.changeLanguage('en')"
-                >
-                  EN
-                </button>
-                <button
-                  type="button"
-                  [class.active]="i18n.language() === 'fr'"
-                  [attr.aria-pressed]="i18n.language() === 'fr'"
-                  (click)="i18n.changeLanguage('fr')"
-                >
-                  FR
-                </button>
-              </div>
-            </div>
-
-            <div class="setting">
-              <bb-icon name="banknote" [size]="24" />
-              <span class="bb-section-title grow">{{ i18n.t('change_currency') }}</span>
-              <div class="options">
-                <button
-                  type="button"
-                  [class.active]="currency.currency() === 'USD'"
-                  [attr.aria-pressed]="currency.currency() === 'USD'"
-                  (click)="currency.changeCurrency('USD')"
-                >
-                  $
-                </button>
-                <button
-                  type="button"
-                  [class.active]="currency.currency() === 'EUR'"
-                  [attr.aria-pressed]="currency.currency() === 'EUR'"
-                  (click)="currency.changeCurrency('EUR')"
-                >
-                  €
-                </button>
-              </div>
-            </div>
-
-            <button type="button" class="logout" (click)="logout()">
-              <bb-icon name="log-out" [size]="24" />
-              {{ i18n.t('log_out') }}
-            </button>
-          </section>
+            </section>
+          }
         }
-      }
+      </section>
     </div>
   `,
   styles: `
     .content {
-      margin-top: -50px;
-      padding-bottom: 40px;
-      display: flex;
-      flex-direction: column;
-      gap: 25px;
-      position: relative;
-      z-index: 1;
+      padding-top: 24px;
+      padding-bottom: 48px;
     }
 
     .identity {
       display: flex;
       flex-direction: column;
-      gap: 25px;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 24px;
+      background: var(--bb-card);
+      border-radius: var(--bb-radius);
+      box-shadow: var(--bb-shadow-card);
     }
 
-    .who {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-    }
-
-    .avatar-col {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .details {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    h2 {
+    .identity h2 {
       margin: 0;
     }
 
+    .email,
+    .bio,
+    .count {
+      margin: 0;
+    }
+
+    .email {
+      word-break: break-word;
+    }
+
     .bio {
-      text-align: justify;
+      max-width: 40ch;
     }
 
     .stats {
       display: flex;
-      gap: 16px;
+      gap: 12px;
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Le selecteur d'onglets n'a pas besoin de toute la largeur du panneau. */
+    .panel > bb-segmented {
+      display: block;
+      max-width: 520px;
     }
 
     .section-head {
@@ -299,7 +302,11 @@ import { StatCard } from '../../shared/ui/stat-card';
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
+    }
+
+    .section-head h2 {
+      margin: 0;
     }
 
     .rows {
@@ -314,27 +321,44 @@ import { StatCard } from '../../shared/ui/stat-card';
     .rows li {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px;
-      border-radius: var(--bb-radius);
+      gap: 16px;
+      padding: 14px 16px;
+      border-radius: var(--bb-radius-sm);
       background: var(--bb-subtle);
     }
 
-    .rows li.review-row {
-      display: block;
+    .rows--plain li {
+      background: transparent;
+      padding: 0 0 12px;
+      border-bottom: 1px solid var(--bb-border);
     }
 
-    .row-text {
+    .rows--plain li:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .row-route {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--bb-primary);
+    }
+
+    .code {
+      font-size: 1.25rem;
+    }
+
+    .row-meta {
+      flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 4px;
     }
 
     .edit {
       width: 40px;
       height: 40px;
-      border-radius: var(--bb-radius);
+      border-radius: var(--bb-radius-sm);
       background: var(--bb-cyan-a10);
       color: var(--bb-primary);
       display: inline-flex;
@@ -347,6 +371,10 @@ import { StatCard } from '../../shared/ui/stat-card';
       display: flex;
       flex-direction: column;
       gap: 20px;
+    }
+
+    .settings h2 {
+      margin: 0;
     }
 
     .setting {
@@ -397,8 +425,8 @@ import { StatCard } from '../../shared/ui/stat-card';
 
     .options button {
       padding: 8px 14px;
-      border-radius: 12px;
-      border: 1px solid var(--bb-tertiary);
+      border-radius: var(--bb-radius-sm);
+      border: 1px solid var(--bb-border);
       background: transparent;
       color: var(--bb-text);
       font-size: var(--bb-fs-body-2);
@@ -447,8 +475,8 @@ export class ProfilePage {
 
   protected readonly tabs = computed<SegmentedOption[]>(() => [
     { key: 'listings', label: this.i18n.t('listings'), color: 'var(--bb-primary-strong)' },
-    { key: 'reviews', label: this.i18n.t('reviews'), color: 'var(--bb-success)' },
-    { key: 'settings', label: this.i18n.t('settings'), color: 'var(--bb-warning)' },
+    { key: 'reviews', label: this.i18n.t('reviews'), color: 'var(--bb-success-strong)' },
+    { key: 'settings', label: this.i18n.t('settings'), color: 'var(--bb-warning-strong)' },
   ]);
 
   constructor() {

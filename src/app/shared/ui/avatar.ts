@@ -31,4 +31,8 @@ import { Component, input } from '@angular/core';
 export class Avatar {
   readonly initials = input('??');
   readonly size = input(44);
+  /** Variante claire pour les avatars poses sur le bandeau degrade. */
+  readonly background = input('var(--bb-cyan-a10)');
+  readonly color = input('var(--bb-primary)');
+  readonly borderColor = input('rgba(14, 165, 233, 0.1)');
 }

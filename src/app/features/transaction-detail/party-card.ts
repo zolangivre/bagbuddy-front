@@ -102,6 +102,8 @@ import { Avatar } from '../../shared/ui/avatar';
     .route {
       display: flex;
       align-items: center;
+      gap: 16px;
+      max-width: 560px;
       margin-bottom: 20px;
       color: var(--bb-primary);
     }
@@ -121,6 +123,7 @@ import { Avatar } from '../../shared/ui/avatar';
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+      max-width: 560px;
       margin-bottom: 20px;
     }
 

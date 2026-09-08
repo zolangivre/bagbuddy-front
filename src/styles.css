@@ -60,8 +60,12 @@
   --bb-warning: #b45309;
   --bb-warning-strong: #b45309;
 
-  /* --- surfaces (theme clair) --- */
-  --bb-background: var(--bb-white);
+  /* --- surfaces (theme clair) ---
+   * Sur mobile tout est blanc sur blanc : ca tient sur 390px de large. Sur un
+   * grand ecran il faut de la profondeur, donc le fond de page prend le
+   * #F8FAFC du mobile et les cartes restent blanches par-dessus.
+   */
+  --bb-background: var(--bb-very-light-blue);
   --bb-card: var(--bb-white);
   --bb-title: var(--bb-dark-blue-grey);
   --bb-title-inverse: var(--bb-white);
@@ -77,25 +81,41 @@
     rgba(224, 242, 254, 0.1) 100%
   );
 
-  /* --- typographie (theme/Fonts.js, px -> rem) --- */
+  /* --- typographie ---
+   * Le mobile utilise la police systeme (SF Pro / Roboto), indisponible ici.
+   * Barlow garde le meme caractere neutre et legerement arrondi, avec en plus
+   * une raison d'etre liee au sujet : c'est une grotesque de signaletique de
+   * transport. Sa version condensee sert aux codes aeroport, horaires et
+   * montants, comme sur un tableau des departs.
+   */
   --bb-font:
-    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --bb-fs-display: 2.25rem;
-  --bb-fs-h1: 1.5rem;
-  --bb-fs-h2: 1.25rem;
-  --bb-fs-h3: 1.125rem;
-  --bb-fs-h4: 1rem;
+    'Barlow', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --bb-font-data: 'Barlow Condensed', var(--bb-font);
+
+  /* Echelle modulaire (~1.25) au lieu des tailles px du mobile. */
+  --bb-fs-display: 2.75rem;
+  --bb-fs-h1: 2rem;
+  --bb-fs-h2: 1.5rem;
+  --bb-fs-h3: 1.25rem;
+  --bb-fs-h4: 1.0625rem;
   --bb-fs-body: 1rem;
-  --bb-fs-body-2: 0.875rem;
-  --bb-fs-body-3: 0.75rem;
+  --bb-fs-body-2: 0.9375rem;
+  --bb-fs-body-3: 0.8125rem;
 
   /* --- formes (theme/Styles.js) --- */
   --bb-radius: 16px;
   --bb-radius-sm: 12px;
   --bb-card-padding: 24px;
-  --bb-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --bb-shadow-raised: 0 10px 15px rgba(0, 0, 0, 0.1);
-  --bb-shadow-button: 0 4px 4px rgba(0, 0, 0, 0.25);
+  /* Ombres plus fines : sur un fond teinte elles n'ont plus a porter seules la
+     separation carte / page. */
+  --bb-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --bb-shadow-raised: 0 10px 24px rgba(15, 23, 42, 0.1);
+  --bb-shadow-button: 0 1px 2px rgba(15, 23, 42, 0.2);
+  /* Largeur du rail de filtres persistant sur grand ecran. */
+  --bb-rail: 264px;
+  /* Colonnes de la liste de transactions, partagees par l'en-tete et les
+     lignes pour qu'elles restent alignees. */
+  --bb-tx-columns: minmax(180px, 1.4fr) minmax(150px, 1fr) 80px 130px minmax(170px, auto);
 
   color-scheme: light;
 }
@@ -200,16 +220,57 @@ button {
 .bb-display {
   font-size: var(--bb-fs-display);
   font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
   color: var(--bb-title);
+}
+
+/*
+ * Styles "donnee" : codes aeroport, horaires, poids et montants. Condense et
+ * chiffres tabulaires, pour que les colonnes s'alignent d'une ligne a l'autre
+ * comme sur un tableau des departs.
+ */
+.bb-code {
+  font-family: var(--bb-font-data);
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--bb-title);
+}
+
+.bb-amount {
+  font-family: var(--bb-font-data);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--bb-title);
+}
+
+.bb-time {
+  font-family: var(--bb-font-data);
+  font-size: 1.125rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--bb-title);
+}
+
+.bb-num {
+  font-variant-numeric: tabular-nums;
 }
 .bb-title-lg {
   font-size: var(--bb-fs-h1);
   font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
   color: var(--bb-white);
 }
 .bb-title-md {
   font-size: var(--bb-fs-h2);
   font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
   color: var(--bb-title);
 }
 .bb-title-sm {
@@ -238,7 +299,10 @@ button {
 }
 .bb-body {
   font-size: var(--bb-fs-body);
+  line-height: 1.55;
   color: var(--bb-text);
+  /* Longueur de ligne confortable : le mobile n'en avait pas besoin. */
+  max-width: 68ch;
 }
 .bb-body-2 {
   font-size: var(--bb-fs-body-2);
@@ -254,8 +318,11 @@ button {
   color: var(--bb-very-light-grey);
 }
 .bb-number {
-  font-size: var(--bb-fs-h2);
-  font-weight: 700;
+  font-family: var(--bb-font-data);
+  font-size: 1.625rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
   color: var(--bb-primary);
 }
 .bb-highlight {
@@ -289,9 +356,41 @@ button {
 }
 
 .bb-page {
-  max-width: 1120px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 16px;
+  padding: 0 20px;
+}
+
+/* Colonne de lecture : formulaires, detail, textes longs. */
+.bb-page--reading {
+  max-width: 780px;
+}
+
+/*
+ * Gabarit "rail + contenu" : sur grand ecran les filtres et l'identite restent
+ * visibles a cote du contenu au lieu d'etre caches derriere une modale.
+ */
+.bb-with-rail {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+.bb-rail-sticky {
+  position: sticky;
+  top: 88px;
+}
+
+@media (min-width: 1024px) {
+  .bb-with-rail {
+    grid-template-columns: var(--bb-rail) minmax(0, 1fr);
+    gap: 32px;
+  }
+
+  .bb-with-rail--aside {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
 }
 
 .bb-stack {

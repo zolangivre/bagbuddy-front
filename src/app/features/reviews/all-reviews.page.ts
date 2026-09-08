@@ -15,7 +15,7 @@ import { SubHeader } from '../../shared/ui/sub-header';
   template: `
     <bb-sub-header [title]="i18n.t('all_reviews')" (back)="goBack()" />
 
-    <div class="bb-page content">
+    <div class="bb-page bb-page--reading content">
       @if (loading()) {
         <bb-loader [label]="i18n.t('loading')" />
       } @else if (reviews().length) {

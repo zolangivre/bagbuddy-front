@@ -45,11 +45,11 @@ import { ListingCard } from './listing-card';
 
     .grid {
       display: grid;
-      gap: 15px;
+      gap: 16px;
       grid-template-columns: 1fr;
     }
 
-    @media (min-width: 900px) {
+    @media (min-width: 1100px) {
       .grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
