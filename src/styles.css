@@ -1,3 +1,322 @@
-/* You can add global styles to this file, and also import other style files */
+/* ==========================================================================
+   BagBuddy — design tokens
+   Repris de l'app mobile : theme/Colors.js, theme/Fonts.js, theme/Styles.js.
+   Les noms de tokens suivent ceux du mobile pour que les deux restent lisibles
+   cote a cote.
+   ========================================================================== */
 
 @import 'tailwindcss';
+
+:root {
+  /* --- palette "material" du mobile --- */
+  --bb-dark-grey: #64748b;
+  /* Gris de texte legerement plus fonce que le mobile : #64748B tombe a 4,3:1
+     sur les aplats teintes, #475569 passe AA partout. */
+  --bb-text-grey: #475569;
+  --bb-dark-grey-a10: #64748b1a;
+  --bb-dark-grey-a20: #64748b33;
+
+  --bb-dark-blue-grey: #1e293b;
+  --bb-white: #ffffff;
+  --bb-very-light-blue: #f8fafc;
+  --bb-very-light-grey: #e2e8f0;
+
+  --bb-cyan: #0ea5e9;
+  --bb-cyan-a10: #0ea5e91a;
+  --bb-cyan-a20: #0ea5e933;
+  --bb-cyan-a05: #0ea5e90d;
+
+  --bb-red: #ef4444;
+  --bb-red-a10: #ef44441a;
+  --bb-red-a20: #ef444433;
+  --bb-red-a05: #ef44440d;
+
+  --bb-green: #10b981;
+  --bb-green-a10: #10b9811a;
+  --bb-green-a20: #10b98133;
+  --bb-green-a05: #10b9810d;
+
+  --bb-yellow: #f59e0b;
+  --bb-yellow-a10: #f59e0b1a;
+  --bb-yellow-a20: #f59e0b33;
+  --bb-yellow-a05: #f59e0b0d;
+
+  /* --- roles ---
+   * Les teintes brutes du mobile (cyan #0EA5E9, vert #10B981, rouge #EF4444,
+   * ambre #F59E0B) restent les couleurs de marque et servent aux aplats
+   * teintes (*-a05/a10/a20) et aux traits. Elles ne passent pas WCAG AA en
+   * texte, donc chaque role a deux declinaisons :
+   *   --bb-<role>          teinte "encre" : texte et icones, adaptee au theme
+   *   --bb-<role>-strong   surface qui porte du texte blanc
+   */
+  --bb-primary: #0369a1;
+  --bb-primary-strong: #0369a1;
+  --bb-secondary: var(--bb-dark-blue-grey);
+  --bb-tertiary: var(--bb-dark-grey);
+  --bb-success: #047857;
+  --bb-success-strong: #047857;
+  --bb-error: #b91c1c;
+  --bb-error-strong: #b91c1c;
+  --bb-warning: #b45309;
+  --bb-warning-strong: #b45309;
+
+  /* --- surfaces (theme clair) --- */
+  --bb-background: var(--bb-white);
+  --bb-card: var(--bb-white);
+  --bb-title: var(--bb-dark-blue-grey);
+  --bb-title-inverse: var(--bb-white);
+  --bb-text: var(--bb-text-grey);
+  --bb-border: var(--bb-very-light-grey);
+  --bb-subtle: rgba(224, 242, 254, 0.35);
+  --bb-input: var(--bb-very-light-blue);
+  --bb-segment-idle: var(--bb-secondary);
+  --bb-start-gradient: linear-gradient(
+    135deg,
+    rgba(14, 165, 233, 0.05) 0%,
+    #ffffff 50%,
+    rgba(224, 242, 254, 0.1) 100%
+  );
+
+  /* --- typographie (theme/Fonts.js, px -> rem) --- */
+  --bb-font:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --bb-fs-display: 2.25rem;
+  --bb-fs-h1: 1.5rem;
+  --bb-fs-h2: 1.25rem;
+  --bb-fs-h3: 1.125rem;
+  --bb-fs-h4: 1rem;
+  --bb-fs-body: 1rem;
+  --bb-fs-body-2: 0.875rem;
+  --bb-fs-body-3: 0.75rem;
+
+  /* --- formes (theme/Styles.js) --- */
+  --bb-radius: 16px;
+  --bb-radius-sm: 12px;
+  --bb-card-padding: 24px;
+  --bb-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --bb-shadow-raised: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --bb-shadow-button: 0 4px 4px rgba(0, 0, 0, 0.25);
+
+  color-scheme: light;
+}
+
+/* Le mobile suit le theme systeme ; ici on garde le systeme par defaut et on
+   autorise en plus un choix explicite via data-theme (reglages du profil). */
+:root[data-theme='dark'],
+:root:not([data-theme='light']) {
+  @media (prefers-color-scheme: dark) {
+    --bb-background: #0a0a0a;
+    --bb-card: #171717;
+    --bb-title: var(--bb-white);
+    --bb-title-inverse: var(--bb-dark-blue-grey);
+    --bb-text: #a1a1a1;
+    --bb-border: #262626;
+    --bb-subtle: rgba(38, 38, 38, 0.55);
+    --bb-input: #202020;
+    --bb-segment-idle: #888888;
+    --bb-primary: #38bdf8;
+    --bb-success: #34d399;
+    --bb-error: #f87171;
+    --bb-warning: #fbbf24;
+    --bb-start-gradient: linear-gradient(135deg, #0a0a0a 0%, #171717 50%, #0a0a0a 100%);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bb-background: #0a0a0a;
+  --bb-card: #171717;
+  --bb-title: var(--bb-white);
+  --bb-title-inverse: var(--bb-dark-blue-grey);
+  --bb-text: #a1a1a1;
+  --bb-border: #262626;
+  --bb-subtle: rgba(38, 38, 38, 0.55);
+  --bb-input: #202020;
+  --bb-segment-idle: #888888;
+  --bb-primary: #38bdf8;
+  --bb-success: #34d399;
+  --bb-error: #f87171;
+  --bb-warning: #fbbf24;
+  --bb-start-gradient: linear-gradient(135deg, #0a0a0a 0%, #171717 50%, #0a0a0a 100%);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--bb-background);
+  color: var(--bb-text);
+  font-family: var(--bb-font);
+  font-size: var(--bb-fs-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--bb-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ==========================================================================
+   Classes partagees — equivalents web des styles repetes du mobile
+   ========================================================================== */
+
+.bb-card {
+  background: var(--bb-card);
+  border-radius: var(--bb-radius);
+  padding: var(--bb-card-padding);
+  box-shadow: var(--bb-shadow-card);
+}
+
+/* Titres / textes : mapping direct de theme.textStyles */
+.bb-display {
+  font-size: var(--bb-fs-display);
+  font-weight: 700;
+  color: var(--bb-title);
+}
+.bb-title-lg {
+  font-size: var(--bb-fs-h1);
+  font-weight: 700;
+  color: var(--bb-white);
+}
+.bb-title-md {
+  font-size: var(--bb-fs-h2);
+  font-weight: 700;
+  color: var(--bb-title);
+}
+.bb-title-sm {
+  font-size: var(--bb-fs-h3);
+  font-weight: 700;
+  color: var(--bb-title);
+}
+.bb-card-status-title {
+  font-size: var(--bb-fs-h2);
+  font-weight: 500;
+}
+.bb-section-title {
+  font-size: var(--bb-fs-h4);
+  font-weight: 600;
+  color: var(--bb-title);
+}
+.bb-card-title {
+  font-size: var(--bb-fs-h4);
+  font-weight: 500;
+  color: var(--bb-title);
+}
+.bb-subtitle {
+  font-size: var(--bb-fs-h4);
+  font-weight: 500;
+  color: var(--bb-text);
+}
+.bb-body {
+  font-size: var(--bb-fs-body);
+  color: var(--bb-text);
+}
+.bb-body-2 {
+  font-size: var(--bb-fs-body-2);
+  color: var(--bb-text);
+}
+.bb-body-3,
+.bb-card-subtitle {
+  font-size: var(--bb-fs-body-3);
+  color: var(--bb-text);
+}
+.bb-muted {
+  font-size: var(--bb-fs-body);
+  color: var(--bb-very-light-grey);
+}
+.bb-number {
+  font-size: var(--bb-fs-h2);
+  font-weight: 700;
+  color: var(--bb-primary);
+}
+.bb-highlight {
+  font-size: var(--bb-fs-body);
+  color: var(--bb-primary);
+}
+.bb-stat-value {
+  font-size: var(--bb-fs-h3);
+  font-weight: 700;
+}
+
+.bb-empty {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-style: italic;
+  color: var(--bb-text);
+}
+
+/* En-tete degrade bleu, present sur home / transactions / profil du mobile */
+.bb-header-gradient {
+  background: linear-gradient(
+    90deg,
+    var(--bb-primary-strong) 0%,
+    var(--bb-primary-strong) 50%,
+    #04769b 100%
+  );
+  color: var(--bb-white);
+}
+
+.bb-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.bb-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.bb-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bb-divider {
+  height: 1px;
+  background: var(--bb-border);
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,59 +1,73 @@
-# BagbuddyFront
+# BagBuddy — front web
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.1.7.
+Version web de l'app mobile BagBuddy : une place de marché entre voyageurs qui
+ont des kilos libres dans leurs bagages et personnes qui veulent envoyer ou
+faire ramener quelque chose depuis l'étranger.
 
-## Development server
+Angular 22 (standalone, signaux, SSR), design repris de l'app mobile Expo.
 
-To start a local development server, run:
+## Les deux repos
 
-```bash
-ng serve
-```
+| Repo             | Contenu                                                        |
+| ---------------- | -------------------------------------------------------------- |
+| `bagbuddy-front` | ce repo — le front web Angular                                  |
+| `bagbuddy-back`  | les microservices Spring Boot + Keycloak (Docker Compose)       |
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Le front tape sur l'API gateway (`http://localhost:8080`) et s'authentifie
+directement auprès de Keycloak (`http://localhost:8000`), en OIDC + PKCE avec le
+client public `bagbuddy-web`.
 
-## Code scaffolding
+## Lancer en local
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
+**1. Le backend** — voir `bagbuddy-back/README.md`
 
 ```bash
-ng build
+cd ../bagbuddy-back
+cp .env.example .env      # remplir avec des mots de passe locaux
+docker compose -f docker-compose.dev.yml up --build -d
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+**2. Le front**
 
 ```bash
-ng test
+npm install
+npm start                 # http://localhost:4200
 ```
 
-## Running end-to-end tests
+**3. Se connecter** avec le compte de test créé automatiquement par Keycloak :
 
-For end-to-end (e2e) testing, run:
+- identifiant : `testuser`
+- mot de passe : `Test1234!`
+
+Les URLs du backend et de Keycloak sont dans
+[`src/environments/environment.ts`](src/environments/environment.ts). Si tu sers
+le front sur un autre port que 4200, mets à jour `CORS_ALLOWED_ORIGINS` côté back
+et les redirect URIs du client `bagbuddy-web` dans le realm Keycloak.
+
+## Commandes
 
 ```bash
-ng e2e
+npm start          # serveur de dev
+npm run build      # build de production
+npm test           # tests unitaires (vitest)
+npx tsc --noEmit -p tsconfig.app.json   # vérification de types
+npx prettier --write "src/**/*.{ts,html,css}"
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+## Ce que couvre le front
 
-## Additional Resources
+| Route                     | Écran mobile correspondant        |
+| ------------------------- | --------------------------------- |
+| `/start`                  | `app/start.js` (vitrine + login)  |
+| `/home`                   | onglet Accueil (acheter / vendre) |
+| `/transactions`           | onglet Transactions               |
+| `/transaction-detail`     | `app/transaction-detail.js`       |
+| `/profile`                | onglet Profil (+ réglages)        |
+| `/profile-view/:sub`      | `app/profile-view.js`             |
+| `/listings`, `/listings/new`, `/listings/:id/edit` | `app/all-listing.js`, `app/edit-listing.js` |
+| `/reviews`                | `app/all-reviews.js`              |
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Le paiement Stripe n'est pas branché : `stripeservice` est désactivé par défaut
+côté back (il lui faut de vraies clés). Le bouton « Effectuer le paiement »
+confirme la transaction sans débit réel — voir `completePayment()` dans
+`src/app/features/transaction-detail/transaction-detail.page.ts`.
