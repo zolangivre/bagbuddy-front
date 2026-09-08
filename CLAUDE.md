@@ -120,13 +120,40 @@ le serveur ne sert que la coquille.
 
 ### Machine à états des transactions
 
-`sellerStatus` / `buyerStatus` sont de simples colonnes texte côté back, qui ne
-valide rien : la source de vérité est
+Le **vocabulaire** des statuts vit ici,
 [src/app/core/transaction-status.ts](src/app/core/transaction-status.ts), comme
 dans l'app mobile. Ajouter un statut = le déclarer là, ajouter son style dans
 `shared/ui/status-badge.ts`, son contenu dans
 `features/transaction-detail/status-card.ts`, son cas dans le `@switch` de
-`transaction-detail.page.ts` — **et** le répercuter à la main dans l'app mobile.
+`transaction-detail.page.ts` — **et** le répercuter à la main dans l'app mobile
+ainsi que dans `bagbuddy.transaction.status` côté back.
+
+Les **transitions**, elles, ne sont plus une affaire de front : le back
+(`TransactionStateMachine`) refuse tout passage qui n'est pas une arête de la
+machine, et vérifie quel côté a le droit de la franchir — un acheteur ne peut
+pas accepter sa propre réservation ni se déclarer payé. Les deux colonnes
+bougent ensemble à chaque étape, c'est bien ce que le front envoie.
+
+Corollaire : trois choses ne sont plus à faire côté front, elles seraient sans
+effet ou refusées.
+
+| Ce qu'on ne fait plus | Qui s'en charge |
+| --- | --- |
+| décrémenter `remainingWeight` après une acceptation | le back, sous verrou, quand le vendeur accepte |
+| calculer `total` (et envoyer `sellerId` / `buyerId`) | le back, à partir de l'annonce réelle et du token |
+| poser `paidAt` à la confirmation de paiement | le webhook Stripe signé, côté back |
+
+En dev local `stripe-service` est éteint, donc `PAYMENTS_REQUIRE_STRIPE=false`
+côté back : la confirmation de paiement reste simulée. Pour brancher le vrai
+paiement, `core/api/stripe.service.ts` expose déjà `createPaymentIntent()`.
+
+### Profil utilisateur
+
+Keycloak porte l'identité (email, nom, mot de passe) ; `userservice` porte ce
+que Keycloak ne connaît pas : bio, localisation, téléphone, compte Stripe.
+`AuthService.loadUserInfo()` lit les deux et les fusionne dans le signal
+`userInfo`. `core/api/users.service.ts` expose `me()`, `updateMe()` et
+`publicProfile(sub)` — ce dernier ne renvoie jamais email ni téléphone.
 
 ### i18n
 

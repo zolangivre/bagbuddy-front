@@ -1,6 +1,6 @@
 import { computed, Service, signal } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import { UserInfo } from '../models';
+import { UserInfo, UserProfile } from '../models';
 
 interface TokenResponse {
   access_token: string;
@@ -137,7 +137,16 @@ export class AuthService {
     );
   }
 
-  /** Recharge le profil depuis Keycloak (apres edition dans la console compte). */
+  /**
+   * Recharge le profil : identite depuis Keycloak, puis complements applicatifs
+   * depuis userservice.
+   *
+   * Keycloak ne connait ni la bio, ni la localisation, ni le telephone — c'est
+   * userservice qui les porte, et GET /users/me cree le profil au premier appel
+   * a partir des claims du token. On appelle en fetch et non via HttpClient
+   * pour eviter la dependance circulaire avec l'intercepteur, qui depend de ce
+   * service.
+   */
   async loadUserInfo(): Promise<void> {
     const token = await this.getValidAccessToken();
     if (!token) return;
@@ -145,7 +154,25 @@ export class AuthService {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!response.ok) throw new Error('userinfo a echoue');
-    this.userInfo.set((await response.json()) as UserInfo);
+    const identity = (await response.json()) as UserInfo;
+    this.userInfo.set({ ...identity, ...(await this.loadAppProfile(token)) });
+  }
+
+  /**
+   * Complements portes par userservice. Une panne de ce service ne doit pas
+   * deconnecter l'utilisateur : on retombe sur la seule identite Keycloak.
+   */
+  private async loadAppProfile(token: string): Promise<Partial<UserInfo>> {
+    try {
+      const response = await fetch(`${environment.apiUrl}/users/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) return {};
+      const profile = (await response.json()) as UserProfile;
+      return { bio: profile.bio, location: profile.location, phone: profile.phone };
+    } catch {
+      return {};
+    }
   }
 
   private async refresh(refreshToken: string): Promise<string> {

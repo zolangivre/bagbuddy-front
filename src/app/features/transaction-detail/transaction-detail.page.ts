@@ -407,19 +407,12 @@ export class TransactionDetailPage {
     const weight = this.selectedWeight();
     this.submitting.set(true);
     this.transactionsApi
+      // On n'envoie que l'annonce et le poids : le back deduit l'acheteur du
+      // token, le vendeur et le prix de l'annonce reelle, et pose les statuts
+      // initiaux. Envoyer total / sellerId / buyerId ici n'aurait aucun effet.
       .create({
         listingId: listing.id,
-        listingInfo: {
-          ...listing,
-          sellerUserInfo: listing.userInfo,
-        },
-        sellerId: listing.userId,
-        buyerId: user.sub,
-        buyerInfo: user,
         weight,
-        sellerStatus: TRANSACTION_STATUS.RESERVATION_RECEIVED,
-        buyerStatus: TRANSACTION_STATUS.WAITING_FOR_RESPONSE_BUYER,
-        total: weight * listing.pricePerKg,
       })
       .subscribe({
         next: (created) => {
@@ -454,7 +447,6 @@ export class TransactionDetailPage {
       {
         ...transaction,
         weight,
-        total: weight * transaction.listingInfo.pricePerKg,
         sellerStatus: TRANSACTION_STATUS.RESERVATION_RECEIVED,
         buyerStatus: TRANSACTION_STATUS.WAITING_FOR_RESPONSE_BUYER,
       },
@@ -478,17 +470,10 @@ export class TransactionDetailPage {
     });
     if (!confirmed) return;
 
-    this.submitting.set(true);
-    const listing = transaction.listingInfo;
-    if (transaction.listingId) {
-      this.trips
-        .update(transaction.listingId, {
-          ...listing,
-          remainingWeight: listing.remainingWeight - transaction.weight,
-        })
-        .subscribe({ error: () => undefined });
-    }
-
+    // Le poids sort du stock cote back, dans la meme operation que le changement
+    // de statut : transactionservice appelle tripservice sous verrou. Le faire
+    // ici serait a la fois redondant et refuse (PUT /trips/{id} est reserve au
+    // proprietaire de l'annonce).
     this.update(
       transaction.id,
       {
@@ -554,7 +539,6 @@ export class TransactionDetailPage {
         ...transaction,
         sellerStatus: TRANSACTION_STATUS.CONFIRMED,
         buyerStatus: TRANSACTION_STATUS.CONFIRMED,
-        paidAt: new Date().toISOString(),
       },
       'payment_completed_title',
       'payment_completed_message',
@@ -645,15 +629,12 @@ export class TransactionDetailPage {
     }
 
     const isBuyer = this.role() === 'buyer';
+    // Auteur et destinataire sont deduits cote back : l'auteur vient du token et
+    // le destinataire est l'autre partie de la transaction. Les envoyer d'ici
+    // serait sans effet — c'est ce qui empeche de noter quelqu'un au hasard.
     this.reviewsApi
       .create({
         transactionId: transaction.id,
-        reviewerId: user.sub,
-        reviewerName: user.name,
-        revieweeId: isBuyer ? transaction.sellerId : transaction.buyerId,
-        revieweeName: isBuyer
-          ? transaction.listingInfo.sellerUserInfo?.name
-          : transaction.buyerInfo?.name,
         ...draft,
       })
       .subscribe({
