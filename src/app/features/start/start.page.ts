@@ -1,6 +1,6 @@
 import { NgOptimizedImage } from '@angular/common';
 import { Component, effect, inject } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { CurrencyService } from '../../core/currency.service';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -9,24 +9,27 @@ import { Button } from '../../shared/ui/button';
 import { HowStep } from '../../shared/ui/how-step';
 import { RoundIcon } from '../../shared/ui/round-icon';
 
-/** Portage de app/start.js : vitrine publique + entree dans le tunnel Keycloak. */
+/** Portage de app/start.js : vitrine publique + entree vers l'inscription. */
 @Component({
   selector: 'bb-start-page',
-  imports: [NgOptimizedImage, Button, HowStep, RoundIcon, Icon],
+  imports: [NgOptimizedImage, RouterLink, Button, HowStep, RoundIcon, Icon],
   template: `
     <div class="screen">
       <div class="bb-page hero">
         <div class="pitch">
           <span class="logo">
-            <img ngSrc="/logo.png" width="115" height="115" alt="" priority />
+            <img ngSrc="/logo.png" width="115" height="172" alt="" priority />
           </span>
           <h1 class="bb-display">BagBuddy</h1>
           <p class="lede">{{ i18n.t('start_subtitle') }}</p>
           <p class="bb-body">{{ i18n.t('start_description') }}</p>
 
-          <bb-button [text]="i18n.t('start_button')" (pressed)="signIn()">
-            <bb-icon slot="right" name="arrow-right" [size]="20" />
-          </bb-button>
+          <div class="cta">
+            <bb-button [text]="i18n.t('start_button')" (pressed)="createAccount()">
+              <bb-icon slot="right" name="arrow-right" [size]="20" />
+            </bb-button>
+            <a class="signin" routerLink="/signin">{{ i18n.t('sign_in') }}</a>
+          </div>
 
           <div class="lang">
             <button
@@ -183,9 +186,29 @@ import { RoundIcon } from '../../shared/ui/round-icon';
       margin: 0;
     }
 
-    .pitch bb-button {
-      max-width: 320px;
+    /* Deux entrees : creer un compte, ou revenir. La seconde est un lien, pas
+       un second bouton — une seule action principale par ecran. */
+    .cta {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
       margin-top: 8px;
+    }
+
+    .cta bb-button {
+      width: auto;
+      min-width: 260px;
+    }
+
+    .signin {
+      font-size: var(--bb-fs-body);
+      font-weight: 500;
+      color: var(--bb-primary);
+    }
+
+    .signin:hover {
+      text-decoration: underline;
     }
 
     .lang {
@@ -358,7 +381,7 @@ export class StartPage {
     });
   }
 
-  protected signIn(): void {
-    void this.auth.signIn('/home');
+  protected createAccount(): void {
+    void this.router.navigate(['/signup']);
   }
 }

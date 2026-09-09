@@ -17,13 +17,35 @@ interface StoredSession {
 }
 
 const SESSION_KEY = 'bagbuddy.session';
-const VERIFIER_KEY = 'bagbuddy.pkce_verifier';
-const RETURN_KEY = 'bagbuddy.return_url';
+
+/** Ce que l'ecran de connexion a besoin de distinguer pour ecrire un message utile. */
+export type AuthErrorCode = 'invalid_credentials' | 'account_disabled' | 'unavailable';
+
+export class AuthError extends Error {
+  constructor(readonly code: AuthErrorCode) {
+    super(code);
+    this.name = 'AuthError';
+  }
+}
 
 /**
- * OAuth2 / OIDC avec PKCE contre Keycloak, transpose depuis AuthContext du
- * mobile (expo-auth-session -> redirection navigateur). Les tokens vivent dans
- * localStorage et sont rafraichis a la demande par getValidAccessToken().
+ * Session Keycloak, obtenue depuis nos propres ecrans.
+ *
+ * Le mobile passe par expo-auth-session, donc par les pages de Keycloak. Le web
+ * ne les affiche pas : sortir du site pour se connecter, revenir, puis en
+ * ressortir pour changer son mot de passe casse le fil, et l'ecran de Keycloak
+ * n'a rien de BagBuddy. On utilise donc le grant `password` (« direct access
+ * grant ») du client public `bagbuddy-web`, en echangeant identifiants contre
+ * jetons depuis le formulaire maison.
+ *
+ * Ce que ce choix coute, a savoir explicitement : le mot de passe transite par
+ * notre code au lieu de n'etre connu que de Keycloak, et ce grant ne sait pas
+ * porter de MFA ni de federation (Google, Apple). Le jour ou l'un des deux est
+ * necessaire, il faut revenir au flux redirection — le client Keycloak garde
+ * ses redirectUris pour ca, il suffit de reactiver `standardFlowEnabled`.
+ *
+ * Le reste ne bouge pas : jetons dans localStorage, session rejouee au demarrage
+ * par le provideAppInitializer, rafraichissement a la demande.
  */
 @Service()
 export class AuthService {
@@ -37,10 +59,6 @@ export class AuthService {
 
   private get tokenEndpoint(): string {
     return `${environment.keycloakUrl}/protocol/openid-connect/token`;
-  }
-
-  private get redirectUri(): string {
-    return `${window.location.origin}/auth/callback`;
   }
 
   /** Rejoue la session stockee au demarrage (appele par l'APP_INITIALIZER). */
@@ -61,47 +79,19 @@ export class AuthService {
     this.isReady.set(true);
   }
 
-  /** Redirige vers la page de login Keycloak (flow code + PKCE). */
-  async signIn(returnUrl = '/home'): Promise<void> {
-    const verifier = this.randomString(64);
-    const challenge = await this.codeChallenge(verifier);
-    sessionStorage.setItem(VERIFIER_KEY, verifier);
-    sessionStorage.setItem(RETURN_KEY, returnUrl);
-
-    const params = new URLSearchParams({
-      client_id: environment.keycloakClientId,
-      redirect_uri: this.redirectUri,
-      response_type: 'code',
-      scope: 'openid profile email',
-      code_challenge: challenge,
-      code_challenge_method: 'S256',
-    });
-    window.location.assign(
-      `${environment.keycloakUrl}/protocol/openid-connect/auth?${params.toString()}`,
+  /** Ouvre une session. Leve une AuthError : l'ecran en tire son message. */
+  async signIn(username: string, password: string): Promise<void> {
+    const tokens = await this.postToken(
+      new URLSearchParams({
+        grant_type: 'password',
+        client_id: environment.keycloakClientId,
+        username,
+        password,
+        scope: 'openid profile email',
+      }),
     );
-  }
-
-  /** Echange le code d'autorisation contre des tokens, au retour de Keycloak. */
-  async handleCallback(code: string): Promise<string> {
-    const verifier = sessionStorage.getItem(VERIFIER_KEY);
-    sessionStorage.removeItem(VERIFIER_KEY);
-    if (!verifier) throw new Error('Code verifier PKCE introuvable');
-
-    const body = new URLSearchParams({
-      grant_type: 'authorization_code',
-      client_id: environment.keycloakClientId,
-      code,
-      code_verifier: verifier,
-      redirect_uri: this.redirectUri,
-    });
-
-    const tokens = await this.postToken(body);
     this.storeSession(tokens);
     await this.loadUserInfo();
-
-    const returnUrl = sessionStorage.getItem(RETURN_KEY) ?? '/home';
-    sessionStorage.removeItem(RETURN_KEY);
-    return returnUrl;
   }
 
   /**
@@ -124,17 +114,39 @@ export class AuthService {
     }
   }
 
+  /**
+   * Force un jeton neuf. A appeler apres un changement d'identite : les claims
+   * du jeton courant (email, nom) datent d'avant la modification.
+   */
+  async refreshTokens(): Promise<void> {
+    const session = this.session();
+    if (!session) return;
+    await this.refresh(session.refreshToken);
+  }
+
+  /**
+   * Ferme la session : localement d'abord, puis on revoque le refresh token.
+   * Sans flux redirection il n'y a pas de cookie SSO a nettoyer chez Keycloak,
+   * donc plus de sortie du site pour se deconnecter. Si la revocation echoue,
+   * l'utilisateur est deja deconnecte ici : on ne le retient pas pour autant.
+   */
   async signOut(): Promise<void> {
     const session = this.session();
     this.clearSession();
-    const params = new URLSearchParams({
-      client_id: environment.keycloakClientId,
-      post_logout_redirect_uri: `${window.location.origin}/start`,
-    });
-    if (session?.idToken) params.set('id_token_hint', session.idToken);
-    window.location.assign(
-      `${environment.keycloakUrl}/protocol/openid-connect/logout?${params.toString()}`,
-    );
+    if (!session) return;
+    try {
+      await fetch(`${environment.keycloakUrl}/protocol/openid-connect/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: environment.keycloakClientId,
+          refresh_token: session.refreshToken,
+        }).toString(),
+      });
+    } catch {
+      // Hors ligne : la session locale est deja effacee, le refresh token
+      // expirera de lui-meme.
+    }
   }
 
   /**
@@ -188,13 +200,35 @@ export class AuthService {
   }
 
   private async postToken(body: URLSearchParams): Promise<TokenResponse> {
-    const response = await fetch(this.tokenEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    });
-    if (!response.ok) throw new Error(`Echange de token refuse (${response.status})`);
+    let response: Response;
+    try {
+      response = await fetch(this.tokenEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      });
+    } catch {
+      throw new AuthError('unavailable');
+    }
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as {
+        error_description?: string;
+      } | null;
+      throw new AuthError(this.errorCode(response.status, payload?.error_description));
+    }
     return (await response.json()) as TokenResponse;
+  }
+
+  /**
+   * Keycloak repond `invalid_grant` aussi bien pour un mot de passe faux que
+   * pour un compte desactive ou temporairement bloque apres trop d'essais : le
+   * detail n'est que dans la description.
+   */
+  private errorCode(status: number, description?: string): AuthErrorCode {
+    if (description && /disabled|not fully set up|temporarily/i.test(description)) {
+      return 'account_disabled';
+    }
+    return status === 400 || status === 401 ? 'invalid_credentials' : 'unavailable';
   }
 
   private storeSession(tokens: TokenResponse): void {
@@ -231,19 +265,5 @@ export class AuthService {
     } catch {
       // ignore
     }
-  }
-
-  private randomString(length: number): string {
-    const bytes = new Uint8Array(length);
-    crypto.getRandomValues(bytes);
-    return Array.from(bytes, (b) => ('0' + (b & 0xff).toString(16)).slice(-2)).join('');
-  }
-
-  private async codeChallenge(verifier: string): Promise<string> {
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
-    return btoa(String.fromCharCode(...new Uint8Array(digest)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
   }
 }

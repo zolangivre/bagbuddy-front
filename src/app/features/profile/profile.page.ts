@@ -1,6 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { environment } from '../../../environments/environment';
+import { Router, RouterLink } from '@angular/router';
 import { ReviewsService } from '../../core/api/reviews.service';
 import { TransactionsService } from '../../core/api/transactions.service';
 import { TripsService } from '../../core/api/trips.service';
@@ -44,7 +43,7 @@ import { StatCard } from '../../shared/ui/stat-card';
         data-variant="on-gradient"
         [label]="i18n.t('edit_profile')"
         [iconSize]="24"
-        (pressed)="openAccountConsole()"
+        (pressed)="editAccount()"
       />
     </bb-page-header>
 
@@ -460,6 +459,7 @@ export class ProfilePage {
   private readonly transactions = inject(TransactionsService);
   private readonly reviewsApi = inject(ReviewsService);
   private readonly confirm = inject(ConfirmService);
+  private readonly router = inject(Router);
 
   protected readonly tab = signal('listings');
   protected readonly listings = signal<Listing[]>([]);
@@ -511,12 +511,11 @@ export class ProfilePage {
   }
 
   /**
-   * Le mobile ouvre la console compte Keycloak plutot qu'un formulaire maison :
-   * on garde ce comportement, et on recharge le profil au retour.
+   * Le mobile ouvrait la console compte de Keycloak dans un navigateur ; le web
+   * a son propre ecran, aux couleurs de l'app (features/account).
    */
-  protected openAccountConsole(): void {
-    window.open(environment.keycloakAccountConsole, '_blank', 'noopener');
-    window.addEventListener('focus', () => void this.auth.loadUserInfo(), { once: true });
+  protected editAccount(): void {
+    void this.router.navigate(['/account']);
   }
 
   protected async logout(): Promise<void> {
@@ -527,6 +526,9 @@ export class ProfilePage {
       cancelText: this.i18n.t('cancel'),
       tone: 'error',
     });
-    if (confirmed) await this.auth.signOut();
+    if (confirmed) {
+      await this.auth.signOut();
+      await this.router.navigate(['/start']);
+    }
   }
 }

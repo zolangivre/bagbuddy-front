@@ -103,20 +103,60 @@ Adaptations web à conserver :
 - les sélecteurs de mode (`bb-segmented`) sont bornés en largeur sur desktop :
   pleine largeur est un réflexe mobile ;
 - le fond de page est `#F8FAFC` et les cartes blanches, là où le mobile est tout
-  blanc — sans ça les cartes disparaissent sur grand écran.
+  blanc — sans ça les cartes disparaissent sur grand écran ;
+- les écrans d'accès (`/signin`, `/signup`) reprennent la carte d'embarquement :
+  formulaire côté trajet, talon perforé à droite
+  ([features/auth/auth-shell.ts](src/app/features/auth/auth-shell.ts)) ;
+- le choix d'aéroport ([shared/ui/airport-input.ts](src/app/shared/ui/airport-input.ts))
+  est une liste maison et non un `<datalist>` : le natif n'ouvrait rien tant
+  qu'on n'avait pas tapé et coupait la liste sans prise sur le défilement. Elle
+  s'ouvre au focus et rend 40 aéroports de plus chaque fois qu'on approche du
+  bas, au scroll comme aux flèches. Le champ vaut un **code IATA** : on peut
+  chercher par ville, mais une saisie qui n'est pas un code connu est effacée au
+  blur plutôt que transmise au formulaire.
 
 ### Auth
 
-OIDC + PKCE contre Keycloak, écrit à la main dans
-[src/app/core/auth/auth.service.ts](src/app/core/auth/auth.service.ts) (portage
-de `contexts/AuthContext.js`, qui utilisait expo-auth-session). Les tokens sont
-dans `localStorage`, rejoués au démarrage par un `provideAppInitializer`, et
-rafraîchis à la demande par `getValidAccessToken()`. Le client Keycloak est
-`bagbuddy-web` (public, PKCE), défini dans le realm de `bagbuddy-back`.
+**Le web ne sort jamais vers les pages de Keycloak.** Le mobile ouvre le
+navigateur sur l'écran de Keycloak (expo-auth-session) ; ici la connexion,
+l'inscription et l'écran de compte sont à nous, aux couleurs de l'app.
+[core/auth/auth.service.ts](src/app/core/auth/auth.service.ts) échange donc
+directement identifiants contre jetons, avec le grant `password` (direct access
+grant) du client public `bagbuddy-web`.
+
+Ce que ce choix coûte, à savoir avant de le reprendre ailleurs : le mot de passe
+transite par notre code au lieu de n'être connu que de Keycloak, et ce grant ne
+sait porter ni MFA ni fédération (Google, Apple). Le jour où l'un des deux est
+nécessaire, il faut revenir au flux redirection — le client Keycloak garde ses
+redirect URIs, il suffit de réactiver `standardFlowEnabled` et de réécrire un
+écran de callback.
+
+Le reste est inchangé : jetons dans `localStorage`, session rejouée au démarrage
+par un `provideAppInitializer`, rafraîchie à la demande par
+`getValidAccessToken()`. La déconnexion ne redirige plus non plus : sans flux
+navigateur il n'y a pas de cookie SSO chez Keycloak, un POST sur `logout`
+révoque le refresh token et on reste dans l'app.
+
+Ce que Keycloak ne peut pas recevoir d'un navigateur — créer un compte, changer
+un email, poser un mot de passe — passe par `userservice`, qui relaie vers l'API
+d'administration : `POST /users/register` (public), `PUT /users/me/identity`,
+`PUT /users/me/password`. Les erreurs reviennent en ProblemDetail avec un champ
+`code` stable (`email_already_used`, `invalid_current_password`,
+`password_rejected`) : **matcher sur le code, jamais sur le libellé**. Après un
+changement d'identité il faut appeler `refreshTokens()`, sinon les claims du
+jeton (nom, email) restent ceux d'avant.
+
+L'écran de compte ([features/account](src/app/features/account/account.page.ts))
+porte trois formulaires séparés — identité, profil public, mot de passe — parce
+qu'ils ne touchent pas les mêmes données et n'ont pas les mêmes conséquences ;
+un seul bouton « enregistrer » enverrait un mot de passe à chaque changement de
+bio. Il remplace l'ouverture de la console compte de Keycloak, et le mock
+`app/edit-profile.js` du mobile (qui n'enregistrait rien).
 
 Comme l'auth est purement navigateur, toutes les routes sont en
-`RenderMode.Client` ([src/app/app.routes.server.ts](src/app/app.routes.server.ts)) :
-le serveur ne sert que la coquille.
+`RenderMode.Client` ([src/app/app.routes.server.ts](src/app/app.routes.server.ts)),
+sauf la vitrine `/start` qui est préchargée au build : le serveur ne sert que la
+coquille.
 
 ### Machine à états des transactions
 

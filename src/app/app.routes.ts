@@ -13,9 +13,12 @@ export const routes: Routes = [
     loadComponent: () => import('./features/start/start.page').then((m) => m.StartPage),
   },
   {
-    path: 'auth/callback',
-    loadComponent: () =>
-      import('./features/auth-callback/auth-callback.page').then((m) => m.AuthCallbackPage),
+    path: 'signin',
+    loadComponent: () => import('./features/auth/sign-in.page').then((m) => m.SignInPage),
+  },
+  {
+    path: 'signup',
+    loadComponent: () => import('./features/auth/sign-up.page').then((m) => m.SignUpPage),
   },
   {
     path: 'home',
@@ -40,6 +43,11 @@ export const routes: Routes = [
     path: 'profile',
     canActivate: [authGuard],
     loadComponent: () => import('./features/profile/profile.page').then((m) => m.ProfilePage),
+  },
+  {
+    path: 'account',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/account/account.page').then((m) => m.AccountPage),
   },
   {
     path: 'profile-view/:sub',

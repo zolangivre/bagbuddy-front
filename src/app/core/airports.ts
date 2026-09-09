@@ -7049,7 +7049,7 @@ export const AIRPORTS: Airport[] = [
     value: 'CDG',
     name: 'Charles de Gaulle International Airport',
     country: 'France',
-    city: 'Paris (Roissy-en-France',
+    city: 'Paris (Roissy-en-France)',
   },
   {
     value: 'CDH',
@@ -23615,7 +23615,7 @@ export const AIRPORTS: Airport[] = [
     value: 'LBG',
     name: 'Paris-Le Bourget Airport',
     country: 'France',
-    city: 'Paris (Le Bourget',
+    city: 'Paris (Le Bourget)',
   },
   {
     value: 'LBI',
@@ -32507,7 +32507,7 @@ export const AIRPORTS: Airport[] = [
     value: 'ORY',
     name: 'Paris-Orly Airport',
     country: 'France',
-    city: 'Paris (Orly',
+    city: 'Paris (Orly)',
   },
   {
     value: 'ORZ',
