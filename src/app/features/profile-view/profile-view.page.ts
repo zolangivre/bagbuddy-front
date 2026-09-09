@@ -5,7 +5,7 @@ import { TransactionsService } from '../../core/api/transactions.service';
 import { TripsService } from '../../core/api/trips.service';
 import { initialsOf } from '../../core/format';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { Review, UserInfo } from '../../core/models';
+import { Review, UserInfoView } from '../../core/models';
 import { Icon } from '../../shared/icon/icon';
 import { IconButton } from '../../shared/ui/icon-button';
 import { Loader } from '../../shared/ui/loader';
@@ -174,7 +174,7 @@ export class ProfileViewPage {
   private readonly trips = inject(TripsService);
 
   protected readonly sub = signal('');
-  protected readonly user = signal<UserInfo | null>(null);
+  protected readonly user = signal<UserInfoView | null>(null);
   protected readonly reviews = signal<Review[]>([]);
   protected readonly averageRating = signal<number | null>(null);
   protected readonly transactionCount = signal<number | null>(null);

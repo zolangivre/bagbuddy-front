@@ -1,8 +1,8 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { email, FieldTree, form, FormField, minLength, required } from '@angular/forms/signals';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { GraphQlError } from '../../core/api/graphql.client';
 import { UsersService } from '../../core/api/users.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { ConfirmService } from '../../core/confirm.service';
@@ -466,11 +466,9 @@ export class AccountPage {
     }
   }
 
+  /** Le code metier se lit maintenant dans `errors[0].extensions.code`. */
   private messageFor(cause: unknown): string {
-    const code =
-      cause instanceof HttpErrorResponse
-        ? (cause.error as { code?: string } | null)?.code
-        : undefined;
+    const code = cause instanceof GraphQlError ? cause.code : undefined;
     if (code === 'email_already_used') return this.i18n.t('error_email_already_used');
     if (code === 'invalid_current_password') return this.i18n.t('error_invalid_current_password');
     if (code === 'password_rejected') return this.i18n.t('error_password_rejected');

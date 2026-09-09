@@ -272,8 +272,8 @@ export class HomeCard {
 
   protected readonly initials = computed(() => {
     const user = this.item().userInfo;
-    return user.given_name && user.family_name
-      ? `${user.given_name[0]}${user.family_name[0]}`.toUpperCase()
+    return user.givenName && user.familyName
+      ? `${user.givenName[0]}${user.familyName[0]}`.toUpperCase()
       : initialsOf(user.name, 'NN');
   });
 

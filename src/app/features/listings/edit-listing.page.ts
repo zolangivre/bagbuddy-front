@@ -376,10 +376,16 @@ export class EditListingPage {
     }
   }
 
+  /**
+   * L'identite du voyageur vient du jeton cote back : on ne transmet que les
+   * champs libres du profil, que TripsService recopie dans `TripInput.profile`.
+   */
   private createPayload(values: ListingForm) {
     const user = this.auth.userInfo();
     return {
-      userInfo: user ?? undefined,
+      userInfo: user
+        ? { sub: user.sub, bio: user.bio, location: user.location, phone: user.phone }
+        : undefined,
       departureAirport: values.departure,
       arrivalAirport: values.arrival,
       departureDate: new Date(values.departureDate).toISOString(),

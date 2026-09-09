@@ -1,8 +1,8 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { email, FieldTree, form, FormField, minLength, required } from '@angular/forms/signals';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { GraphQlError } from '../../core/api/graphql.client';
 import { UsersService } from '../../core/api/users.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -193,14 +193,13 @@ export class SignUpPage {
   }
 
   /**
-   * userservice renvoie un `code` stable dans le ProblemDetail ; au-dela, l'echec
-   * vient de la connexion qui suit la creation.
+   * userservice renvoie un `code` stable dans `errors[0].extensions.code` ;
+   * au-dela, l'echec vient de la connexion qui suit la creation.
    */
   private messageFor(cause: unknown): string {
-    if (cause instanceof HttpErrorResponse) {
-      const code = (cause.error as { code?: string } | null)?.code;
-      if (code === 'email_already_used') return this.i18n.t('error_email_already_used');
-      if (code === 'password_rejected') return this.i18n.t('error_password_rejected');
+    if (cause instanceof GraphQlError) {
+      if (cause.code === 'email_already_used') return this.i18n.t('error_email_already_used');
+      if (cause.code === 'password_rejected') return this.i18n.t('error_password_rejected');
       return this.i18n.t('error_auth_unavailable');
     }
     return messageForAuthError(this.i18n, cause);

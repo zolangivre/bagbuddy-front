@@ -1,16 +1,18 @@
-import { HttpClient } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
-import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { map, Observable } from 'rxjs';
+import { GraphQlClient } from './graphql.client';
 
-/** Route /stripe/** de l'API gateway -> stripeservice. */
+/** Schema GraphQL de stripeservice, servi sur /stripe/graphql. */
 @Service()
 export class StripeService {
-  private readonly http = inject(HttpClient);
-  private readonly base = `${environment.apiUrl}/stripe`;
+  private readonly gql = inject(GraphQlClient);
 
   config(): Observable<{ publishableKey: string }> {
-    return this.http.get<{ publishableKey: string }>(`${this.base}/config`);
+    return this.gql
+      .request<{
+        stripeConfig: { publishableKey: string };
+      }>('stripe', `query { stripeConfig { publishableKey } }`)
+      .pipe(map((data) => data.stripeConfig));
   }
 
   /**
@@ -19,11 +21,15 @@ export class StripeService {
    * l'annonce. On ne transmet donc que l'identifiant de la transaction.
    *
    * Le passage effectif en "paye" ne vient pas de cette reponse mais du webhook
-   * Stripe signe, cote back.
+   * Stripe signe, qui reste en REST cote back (le front ne l'appelle pas).
    */
   createPaymentIntent(transactionId: string): Observable<{ clientSecret: string }> {
-    return this.http.post<{ clientSecret: string }>(`${this.base}/create-payment-intent`, {
-      transactionId,
-    });
+    return this.gql
+      .request<{ createPaymentIntent: { clientSecret: string } }>(
+        'stripe',
+        `mutation($transactionId: ID!) { createPaymentIntent(transactionId: $transactionId) { clientSecret } }`,
+        { transactionId },
+      )
+      .pipe(map((data) => data.createPaymentIntent));
   }
 }

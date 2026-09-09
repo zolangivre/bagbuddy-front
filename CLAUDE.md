@@ -139,12 +139,12 @@ révoque le refresh token et on reste dans l'app.
 
 Ce que Keycloak ne peut pas recevoir d'un navigateur — créer un compte, changer
 un email, poser un mot de passe — passe par `userservice`, qui relaie vers l'API
-d'administration : `POST /users/register` (public), `PUT /users/me/identity`,
-`PUT /users/me/password`. Les erreurs reviennent en ProblemDetail avec un champ
-`code` stable (`email_already_used`, `invalid_current_password`,
-`password_rejected`) : **matcher sur le code, jamais sur le libellé**. Après un
-changement d'identité il faut appeler `refreshTokens()`, sinon les claims du
-jeton (nom, email) restent ceux d'avant.
+d'administration : mutations `register` (seule opération sans jeton),
+`updateIdentity` et `changePassword`. Les erreurs portent un `code` stable
+(`email_already_used`, `invalid_current_password`, `password_rejected`) dans
+`errors[0].extensions.code`, exposé par `GraphQlError.code` : **matcher sur le
+code, jamais sur le libellé**. Après un changement d'identité il faut appeler
+`refreshTokens()`, sinon les claims du jeton (nom, email) restent ceux d'avant.
 
 L'écran de compte ([features/account](src/app/features/account/account.page.ts))
 porte trois formulaires séparés — identité, profil public, mot de passe — parce
@@ -157,6 +157,42 @@ Comme l'auth est purement navigateur, toutes les routes sont en
 `RenderMode.Client` ([src/app/app.routes.server.ts](src/app/app.routes.server.ts)),
 sauf la vitrine `/start` qui est préchargée au build : le serveur ne sert que la
 coquille.
+
+### L'API est en GraphQL
+
+Un schéma par service, une seule URL en `POST` :
+`${apiUrl}/<service>/graphql` (trips, transactions, reviews, users, stripe).
+Tout passe par [core/api/graphql.client.ts](src/app/core/api/graphql.client.ts),
+qui poste `{ query, variables }` et **transforme `errors[]` en erreur
+observable** : GraphQL répond toujours `200`, donc sans lui les `catchError` et
+les callbacks `error:` des écrans ne se déclencheraient plus. `GraphQlError`
+expose `classification` (`UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`,
+`BAD_REQUEST` — l'ex-statut HTTP) et `code` (l'ex-`ProblemDetail.code`).
+`ValidationError` en `classification` n'est pas une erreur utilisateur mais un
+bug : la requête ne respecte pas le schéma.
+
+Conséquence sur les écritures : **les payloads sont construits explicitement
+dans les services**, jamais relayés tels quels. Ce qu'un type `input` n'expose
+pas provoque une `ValidationError` — les écrans passent encore la transaction
+entière à `update()`, c'est `TransactionsService` qui ne retient que les statuts,
+le poids et les drapeaux d'avis. De même `TripInput` n'accepte ni `userId` ni
+`userInfo` (l'identité vient du jeton, seuls bio / localisation / téléphone
+passent par `profile`), et `createTransaction` n'accepte que `listingId` et
+`weight`.
+
+Deux formes d'instantané utilisateur cohabitent dans
+[core/models.ts](src/app/core/models.ts) et ne doivent pas être confondues :
+`TokenClaims` (claims OIDC de `auth.userInfo()`, en **snake_case** — c'est le
+standard OpenID) et `UserInfoView` (`Listing.userInfo`, `Transaction.buyerInfo`,
+`ListingInfo.sellerUserInfo`, en **camelCase** — c'est le schéma GraphQL).
+
+Trois méthodes ne renvoient plus `void` mais le booléen de leur mutation :
+`trips.remove()`, `users.register()` et `users.changePassword()`.
+
+`loadAppProfile()` dans `core/auth/auth.service.ts` reste en `fetch` brut (la
+dépendance circulaire avec l'intercepteur n'a pas changé) : il poste
+`{ me { bio location phone } }` et rend `{}` dès qu'il y a un `errors[]`, pour
+qu'une panne de userservice ne déconnecte personne.
 
 ### Machine à états des transactions
 

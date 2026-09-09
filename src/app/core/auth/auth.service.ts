@@ -1,6 +1,6 @@
 import { computed, Service, signal } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import { UserInfo, UserProfile } from '../models';
+import { TokenClaims, UserProfile } from '../models';
 
 interface TokenResponse {
   access_token: string;
@@ -52,7 +52,7 @@ export class AuthService {
   private readonly session = signal<StoredSession | null>(null);
   private refreshInFlight: Promise<string> | null = null;
 
-  readonly userInfo = signal<UserInfo | null>(null);
+  readonly userInfo = signal<TokenClaims | null>(null);
   readonly isSignedIn = computed(() => this.session() !== null);
   /** Faux tant que la session stockee n'a pas ete rechargee au demarrage. */
   readonly isReady = signal(false);
@@ -154,7 +154,7 @@ export class AuthService {
    * depuis userservice.
    *
    * Keycloak ne connait ni la bio, ni la localisation, ni le telephone — c'est
-   * userservice qui les porte, et GET /users/me cree le profil au premier appel
+   * userservice qui les porte, et la query `me` cree le profil au premier appel
    * a partir des claims du token. On appelle en fetch et non via HttpClient
    * pour eviter la dependance circulaire avec l'intercepteur, qui depend de ce
    * service.
@@ -166,7 +166,7 @@ export class AuthService {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!response.ok) throw new Error('userinfo a echoue');
-    const identity = (await response.json()) as UserInfo;
+    const identity = (await response.json()) as TokenClaims;
     this.userInfo.set({ ...identity, ...(await this.loadAppProfile(token)) });
   }
 
@@ -174,13 +174,23 @@ export class AuthService {
    * Complements portes par userservice. Une panne de ce service ne doit pas
    * deconnecter l'utilisateur : on retombe sur la seule identite Keycloak.
    */
-  private async loadAppProfile(token: string): Promise<Partial<UserInfo>> {
+  private async loadAppProfile(token: string): Promise<Partial<TokenClaims>> {
     try {
-      const response = await fetch(`${environment.apiUrl}/users/me`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await fetch(`${environment.apiUrl}/users/graphql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ query: '{ me { bio location phone } }' }),
       });
       if (!response.ok) return {};
-      const profile = (await response.json()) as UserProfile;
+      // GraphQL repond 200 meme en echec : une panne se lit dans errors[], et ne
+      // doit pas plus deconnecter qu'un 500 ne le faisait.
+      const body = (await response.json()) as {
+        data?: { me?: UserProfile | null } | null;
+        errors?: unknown[];
+      };
+      if (body.errors?.length) return {};
+      const profile = body.data?.me;
+      if (!profile) return {};
       return { bio: profile.bio, location: profile.location, phone: profile.phone };
     } catch {
       return {};

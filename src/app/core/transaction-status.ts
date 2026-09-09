@@ -1,11 +1,12 @@
 /**
  * Machine a etats des transactions.
  *
- * Le backend stocke sellerStatus / buyerStatus comme de simples colonnes texte
- * et ne valide rien : la source de verite est ici, cote front, exactement comme
- * dans l'app mobile (constants/transaction-status.js). Ajouter un statut =
+ * Le *vocabulaire* vit ici, cote front, exactement comme dans l'app mobile
+ * (constants/transaction-status.js). Les *transitions*, elles, sont validees par
+ * le back (TransactionStateMachine) : un passage qui n'est pas une arete de la
+ * machine, ou tente par le mauvais cote, est refuse. Ajouter un statut =
  * l'ajouter ici, dans les libelles, dans le badge et dans le dispatch de la
- * page detail — et le tenir synchronise avec l'app mobile.
+ * page detail — et le tenir synchronise avec l'app mobile et le back.
  */
 export const TRANSACTION_STATUS = {
   // Cote acheteur
