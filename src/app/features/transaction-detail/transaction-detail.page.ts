@@ -1,5 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { GraphQlError } from '../../core/api/graphql.client';
+import { LoadErrorKey, loadErrorKey } from '../../core/api/load-error';
 import { ReviewsService } from '../../core/api/reviews.service';
 import { TransactionsService } from '../../core/api/transactions.service';
 import { TripsService } from '../../core/api/trips.service';
@@ -12,6 +14,7 @@ import { TRANSACTION_STATUS } from '../../core/transaction-status';
 import { Icon } from '../../shared/icon/icon';
 import { Button } from '../../shared/ui/button';
 import { IconButton } from '../../shared/ui/icon-button';
+import { LoadError } from '../../shared/ui/load-error';
 import { Loader } from '../../shared/ui/loader';
 import { ReviewCard } from '../../shared/ui/review-card';
 import { StatusBadge } from '../../shared/ui/status-badge';
@@ -40,6 +43,7 @@ import { WeightSelector } from './weight-selector';
     ReviewModal,
     Button,
     Loader,
+    LoadError,
     Icon,
   ],
   template: `
@@ -63,6 +67,10 @@ import { WeightSelector } from './weight-selector';
 
     @if (loading()) {
       <bb-loader [label]="i18n.t('loading')" />
+    } @else if (loadError(); as error) {
+      <div class="bb-page">
+        <bb-load-error [messageKey]="error" (retry)="load()" />
+      </div>
     } @else if (listing(); as currentListing) {
       <div class="bb-page content bb-with-rail bb-with-rail--aside">
         <section class="main">
@@ -291,6 +299,8 @@ export class TransactionDetailPage {
   private readonly confirm = inject(ConfirmService);
 
   protected readonly loading = signal(true);
+  /** Echec de lecture autre qu'un introuvable, qui garde son propre ecran. */
+  protected readonly loadError = signal<LoadErrorKey | null>(null);
   protected readonly submitting = signal(false);
   protected readonly listing = signal<ListingInfo | null>(null);
   protected readonly transaction = signal<Transaction | null>(null);
@@ -316,9 +326,12 @@ export class TransactionDetailPage {
       case TRANSACTION_STATUS.BROWSE_LISTING:
         return role === 'buyer' ? 0 : null;
       case TRANSACTION_STATUS.RESERVATION_RECEIVED:
+      // Apres un refus, la suite pour le vendeur est une nouvelle demande de
+      // l'acheteur : il revient a « demande recue », pas a « attente du
+      // paiement », qui laisserait croire la demande acceptee.
+      case TRANSACTION_STATUS.WAITING_FOR_RESPONSE_SELLER:
         return 0;
       case TRANSACTION_STATUS.WAITING_FOR_RESPONSE_BUYER:
-      case TRANSACTION_STATUS.WAITING_FOR_RESPONSE_SELLER:
       case TRANSACTION_STATUS.REQUEST_REJECTED:
       case TRANSACTION_STATUS.AWAITING_PAYMENT:
         return 1;
@@ -340,10 +353,16 @@ export class TransactionDetailPage {
   });
 
   constructor() {
+    this.load();
+  }
+
+  /** Relit l'URL a chaque appel : apres une reservation, elle porte la transaction. */
+  protected load(): void {
     const params = this.route.snapshot.queryParamMap;
     const transactionId = params.get('transactionId');
     const listingId = params.get('listingId');
 
+    this.loadError.set(null);
     if (transactionId) {
       this.loadTransaction(transactionId);
     } else if (listingId) {
@@ -354,6 +373,7 @@ export class TransactionDetailPage {
   }
 
   private loadListing(listingId: string): void {
+    this.loading.set(true);
     this.trips.byId(listingId).subscribe({
       next: (listing) => {
         this.listing.set(listing);
@@ -361,19 +381,15 @@ export class TransactionDetailPage {
         this.status.set(TRANSACTION_STATUS.BROWSE_LISTING);
         this.loading.set(false);
       },
-      error: () => this.loading.set(false),
+      error: (error) => this.failLoad(error),
     });
   }
 
   private loadTransaction(transactionId: string): void {
+    this.loading.set(true);
     this.transactionsApi.byId(transactionId).subscribe({
       next: (transaction) => {
-        this.transaction.set(transaction);
-        this.listing.set(transaction.listingInfo);
-        const isBuyer = transaction.buyerId === this.currentUserSub();
-        this.role.set(isBuyer ? 'buyer' : 'seller');
-        this.status.set(isBuyer ? transaction.buyerStatus : transaction.sellerStatus);
-        this.selectedWeight.set(transaction.weight || 1);
+        this.show(transaction);
         this.loading.set(false);
         if (transaction.buyerReview || transaction.sellerReview) {
           this.reviewsApi.forTransaction(transactionId).subscribe({
@@ -381,8 +397,31 @@ export class TransactionDetailPage {
           });
         }
       },
-      error: () => this.loading.set(false),
+      error: (error) => this.failLoad(error),
     });
+  }
+
+  /**
+   * Met la page sur une transaction. Sert a la lecture comme apres chaque
+   * mutation : `createTransaction` et `updateTransaction` renvoient la
+   * transaction a jour avec la meme selection de champs que `transaction(id)`,
+   * la relire ensuite ne ferait qu'un aller-retour et un ecran de chargement de
+   * plus.
+   */
+  private show(transaction: Transaction): void {
+    this.transaction.set(transaction);
+    this.listing.set(transaction.listingInfo);
+    const isBuyer = transaction.buyerId === this.currentUserSub();
+    this.role.set(isBuyer ? 'buyer' : 'seller');
+    this.status.set(isBuyer ? transaction.buyerStatus : transaction.sellerStatus);
+    this.selectedWeight.set(transaction.weight || 1);
+  }
+
+  /** Un introuvable garde l'ecran « aucun resultat » ; le reste propose de reessayer. */
+  private failLoad(error: unknown): void {
+    const notFound = error instanceof GraphQlError && error.classification === 'NOT_FOUND';
+    this.loadError.set(notFound ? null : loadErrorKey(error));
+    this.loading.set(false);
   }
 
   protected goBack(): void {
@@ -417,11 +456,19 @@ export class TransactionDetailPage {
       .subscribe({
         next: (created) => {
           this.submitting.set(false);
+          this.show(created);
+          // L'URL passe de l'annonce a la transaction, pour qu'un rechargement
+          // ou un partage retombe dessus. Meme route : le composant est reutilise
+          // et ne relit rien.
+          void this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: { transactionId: created.id },
+            replaceUrl: true,
+          });
           this.confirm.inform(
             this.i18n.t('reservation_request_sent_title'),
             this.i18n.t('reservation_request_sent_message'),
           );
-          this.reload(created.id);
         },
         error: () => this.fail('reservation_request_error_message'),
       });
@@ -616,12 +663,14 @@ export class TransactionDetailPage {
     const existing = this.editedReview();
     if (existing?.id) {
       this.reviewsApi.update(existing.id, { ...existing, ...draft }).subscribe({
-        next: () => {
+        next: (updated) => {
+          this.reviews.update((reviews) =>
+            reviews.map((review) => (review.id === updated.id ? updated : review)),
+          );
           this.confirm.inform(
             this.i18n.t('review_updated_title'),
             this.i18n.t('review_updated_message'),
           );
-          this.reload(transaction.id);
         },
         error: () => this.fail('review_updated_error_message'),
       });
@@ -638,7 +687,8 @@ export class TransactionDetailPage {
         ...draft,
       })
       .subscribe({
-        next: () => {
+        next: (created) => {
+          this.reviews.update((reviews) => [...reviews, created]);
           this.transactionsApi
             .update(transaction.id!, {
               ...transaction,
@@ -646,12 +696,12 @@ export class TransactionDetailPage {
               sellerReview: isBuyer ? transaction.sellerReview : true,
             })
             .subscribe({
-              next: () => {
+              next: (updated) => {
+                this.show(updated);
                 this.confirm.inform(
                   this.i18n.t('review_submitted_title'),
                   this.i18n.t('review_submitted_message'),
                 );
-                this.reload(transaction.id);
               },
               error: () => this.fail('review_submitted_error_message'),
             });
@@ -671,8 +721,8 @@ export class TransactionDetailPage {
     this.transactionsApi.update(id, payload).subscribe({
       next: (updated) => {
         this.submitting.set(false);
+        this.show(updated);
         this.confirm.inform(this.i18n.t(successTitle), this.i18n.t(successMessage));
-        this.reload(updated.id ?? id);
       },
       error: () => this.fail(errorMessage),
     });
@@ -681,17 +731,5 @@ export class TransactionDetailPage {
   private fail(messageKey: Parameters<I18nService['t']>[0]): void {
     this.submitting.set(false);
     this.confirm.inform(this.i18n.t('error'), this.i18n.t(messageKey));
-  }
-
-  /** Recharge la page sur la transaction (equivalent du router.replace mobile). */
-  private reload(transactionId: string | undefined): void {
-    if (!transactionId) return;
-    void this.router.navigate(['/transaction-detail'], {
-      queryParams: { transactionId },
-      onSameUrlNavigation: 'reload',
-      replaceUrl: true,
-    });
-    this.loading.set(true);
-    this.loadTransaction(transactionId);
   }
 }

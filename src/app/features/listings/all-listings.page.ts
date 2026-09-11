@@ -1,10 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { LoadErrorKey, loadErrorKey } from '../../core/api/load-error';
 import { TripsService } from '../../core/api/trips.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Listing } from '../../core/models';
 import { IconButton } from '../../shared/ui/icon-button';
+import { LoadError } from '../../shared/ui/load-error';
 import { Loader } from '../../shared/ui/loader';
 import { SubHeader } from '../../shared/ui/sub-header';
 import { ListingCard } from './listing-card';
@@ -12,7 +14,7 @@ import { ListingCard } from './listing-card';
 /** Portage de app/all-listing.js. */
 @Component({
   selector: 'bb-all-listings-page',
-  imports: [SubHeader, IconButton, ListingCard, Loader],
+  imports: [SubHeader, IconButton, ListingCard, Loader, LoadError],
   template: `
     <bb-sub-header [title]="i18n.t('all_listings')" (back)="goBack()">
       <bb-icon-button
@@ -26,6 +28,8 @@ import { ListingCard } from './listing-card';
     <div class="bb-page content">
       @if (loading()) {
         <bb-loader [label]="i18n.t('loading')" />
+      } @else if (loadError(); as error) {
+        <bb-load-error [messageKey]="error" (retry)="load()" />
       } @else if (listings().length) {
         <div class="grid">
           @for (listing of listings(); track listing.id) {
@@ -64,21 +68,31 @@ export class AllListingsPage {
 
   protected readonly listings = signal<Listing[]>([]);
   protected readonly loading = signal(true);
+  protected readonly loadError = signal<LoadErrorKey | null>(null);
   private readonly names = signal<Map<string, string>>(new Map());
 
   constructor() {
+    this.load();
+  }
+
+  protected load(): void {
     const sub = this.auth.userInfo()?.sub;
     if (!sub) {
       this.loading.set(false);
       return;
     }
+    this.loading.set(true);
+    this.loadError.set(null);
     this.trips.byUser(sub).subscribe({
       next: (listings) => {
         this.listings.set(Array.isArray(listings) ? listings : []);
         this.loading.set(false);
         void this.loadAirportNames();
       },
-      error: () => this.loading.set(false),
+      error: (error) => {
+        this.loadError.set(loadErrorKey(error));
+        this.loading.set(false);
+      },
     });
   }
 

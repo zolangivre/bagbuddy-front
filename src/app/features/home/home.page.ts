@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { LoadErrorKey, loadErrorKey } from '../../core/api/load-error';
 import { TripsService } from '../../core/api/trips.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { CurrencyService } from '../../core/currency.service';
@@ -7,14 +8,19 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { Listing, ListingFilters, SortOption } from '../../core/models';
 import { Avatar } from '../../shared/ui/avatar';
 import { Filters } from '../../shared/ui/filters';
+import { LoadError } from '../../shared/ui/load-error';
 import { Loader } from '../../shared/ui/loader';
 import { PageHeader } from '../../shared/ui/page-header';
+import { RevealMore, revealInSlices } from '../../shared/ui/reveal-more';
 import { ResultsHeader } from '../../shared/ui/results-header';
 import { Segmented, SegmentedOption } from '../../shared/ui/segmented';
 import { SortSelect } from '../../shared/ui/sort-select';
 import { StatCard } from '../../shared/ui/stat-card';
 import { HomeCard } from './home-card';
 import { SellView } from './sell-view';
+
+/** Cartes rendues par tranche ; voir bb-reveal-more pour le pourquoi. */
+const LISTINGS_PAGE_SIZE = 20;
 
 /** Portage de app/(tabs)/home.js, remis en gabarit rail + resultats. */
 @Component({
@@ -30,27 +36,29 @@ import { SellView } from './sell-view';
     HomeCard,
     SellView,
     Loader,
+    LoadError,
+    RevealMore,
   ],
   template: `
     <bb-page-header
       [title]="i18n.t('welcome_back', { name: firstName() })"
       [subtitle]="i18n.t('find_luggage_space')"
     >
-      <div class="stats">
+      <div class="bb-stat-row">
         <bb-stat-card
           icon="plane"
-          [value]="listings().length.toString()"
-          [label]="i18n.t('active_routes')"
+          [value]="loaded() ? listings().length.toString() : '–'"
+          labelKey="active_routes"
         />
         <bb-stat-card
           icon="weight"
-          [value]="totalWeight() + ' kg'"
-          [label]="i18n.t('available_weight')"
+          [value]="loaded() ? totalWeight() + ' kg' : '–'"
+          labelKey="available_weight"
         />
         <bb-stat-card
           icon="trending-up"
-          [value]="currency.format(averagePrice())"
-          [label]="i18n.t('avg_price')"
+          [value]="loaded() ? currency.format(averagePrice()) : '–'"
+          labelKey="avg_price"
         />
       </div>
 
@@ -80,12 +88,17 @@ import { SellView } from './sell-view';
 
             @if (loading()) {
               <bb-loader [label]="i18n.t('loading')" />
+            } @else if (loadError(); as error) {
+              <bb-load-error [messageKey]="error" (retry)="fetchListings()" />
             } @else if (visibleListings().length) {
               <div class="list">
-                @for (listing of visibleListings(); track listing.id) {
+                @for (listing of slices.shown(); track listing.id) {
                   <bb-home-card [item]="listing" />
                 }
               </div>
+              @if (slices.hasMore()) {
+                <bb-reveal-more [count]="slices.count()" (reached)="slices.more()" />
+              }
             } @else {
               <p class="bb-empty">{{ i18n.t('no_results_found') }}</p>
             }
@@ -97,11 +110,6 @@ import { SellView } from './sell-view';
     </div>
   `,
   styles: `
-    .stats {
-      display: flex;
-      gap: 12px;
-    }
-
     .switcher {
       padding-top: 20px;
     }
@@ -133,6 +141,7 @@ export class HomePage {
 
   protected readonly listings = signal<Listing[]>([]);
   protected readonly loading = signal(false);
+  protected readonly loadError = signal<LoadErrorKey | null>(null);
   protected readonly mode = signal('buy');
   protected readonly filters = signal<ListingFilters>({});
 
@@ -141,17 +150,24 @@ export class HomePage {
   protected readonly modes = computed<SegmentedOption[]>(() => [
     {
       key: 'buy',
-      label: this.i18n.t('buy_weight'),
+      labelKey: 'buy_weight',
       icon: 'weight',
       color: 'var(--bb-primary-strong)',
     },
     {
       key: 'sell',
-      label: this.i18n.t('sell_weight'),
+      labelKey: 'sell_weight',
       icon: 'plus',
       color: 'var(--bb-success-strong)',
     },
   ]);
+
+  /**
+   * Faux pendant le chargement et apres un echec : les chiffres du bandeau et le
+   * compteur ne disent alors rien plutot que « 0 trajet », qui se lirait comme
+   * un resultat.
+   */
+  protected readonly loaded = computed(() => !this.loading() && !this.loadError());
 
   protected readonly firstName = computed(() => this.auth.userInfo()?.given_name ?? '');
   protected readonly initials = computed(() => initialsOf(this.auth.userInfo()?.name, '?'));
@@ -198,7 +214,11 @@ export class HomePage {
     }
   });
 
+  protected readonly slices = revealInSlices(this.visibleListings, LISTINGS_PAGE_SIZE);
+
   protected readonly resultsLabel = computed(() => {
+    // Espace insecable : la ligne garde sa hauteur sans rien annoncer.
+    if (!this.loaded()) return '\u00a0';
     const count = this.visibleListings().length;
     return this.i18n.t(count > 1 ? 'results_count' : 'results_count_one', { count });
   });
@@ -211,14 +231,18 @@ export class HomePage {
     this.filters.update((current) => ({ ...current, sort }));
   }
 
-  private fetchListings(): void {
+  protected fetchListings(): void {
     this.loading.set(true);
+    this.loadError.set(null);
     this.trips.active().subscribe({
       next: (listings) => {
         this.listings.set(listings.filter((listing) => listing.remainingWeight > 0));
         this.loading.set(false);
       },
-      error: () => this.loading.set(false),
+      error: (error) => {
+        this.loadError.set(loadErrorKey(error));
+        this.loading.set(false);
+      },
     });
   }
 }

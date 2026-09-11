@@ -1,5 +1,22 @@
 /** Portage de components/LocalizedDateTime.js. */
 
+const dateTimeFormats = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * Construire un `Intl.DateTimeFormat` charge les donnees de locale : c'est la
+ * partie couteuse, `format()` ne l'est pas. Chaque carte formate quatre dates a
+ * chaque rendu, donc un formateur par combinaison langue / options, reutilise.
+ */
+function dateTimeFormat(language: string, options: Intl.DateTimeFormatOptions) {
+  const key = `${language}|${JSON.stringify(options)}`;
+  let format = dateTimeFormats.get(key);
+  if (!format) {
+    format = new Intl.DateTimeFormat(language, options);
+    dateTimeFormats.set(key, format);
+  }
+  return format;
+}
+
 export function formatLocalizedDate(
   date: string | Date | null | undefined,
   language = 'en',
@@ -8,7 +25,7 @@ export function formatLocalizedDate(
   if (!date) return '';
   const dt = typeof date === 'string' ? new Date(date) : date;
   if (Number.isNaN(dt.getTime())) return '';
-  return new Intl.DateTimeFormat(language, {
+  return dateTimeFormat(language, {
     month: style === 'short' ? 'short' : 'long',
     day: 'numeric',
     year: 'numeric',
@@ -23,7 +40,7 @@ export function formatLocalizedTime(
   if (!date) return '';
   const dt = typeof date === 'string' ? new Date(date) : date;
   if (Number.isNaN(dt.getTime())) return '';
-  return new Intl.DateTimeFormat(language, {
+  return dateTimeFormat(language, {
     hour: '2-digit',
     minute: '2-digit',
     ...(includeSeconds ? { second: '2-digit' as const } : {}),

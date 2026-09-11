@@ -7,6 +7,12 @@ const REVIEW_FIELDS = `
   id transactionId reviewerId reviewerName revieweeId revieweeName rating comment createdAt
 `;
 
+export interface ReviewSummary {
+  reviews: Review[];
+  /** Null tant que le membre n'a recu aucun avis. */
+  average: number | null;
+}
+
 /**
  * Schema GraphQL de reviewservice, servi sur /reviews/graphql.
  *
@@ -37,6 +43,23 @@ export class ReviewsService {
         { revieweeId: sub },
       )
       .pipe(map((data) => data.averageRating));
+  }
+
+  /**
+   * Avis recus et moyenne en une requete : le profil public affiche les deux, et
+   * ils vivent dans le meme schema.
+   */
+  summaryForReviewee(sub: string): Observable<ReviewSummary> {
+    return this.gql
+      .request<{ reviewsByReviewee: Review[]; averageRating: number | null }>(
+        'reviews',
+        `query($revieweeId: String!) {
+          reviewsByReviewee(revieweeId: $revieweeId) { ${REVIEW_FIELDS} }
+          averageRating(revieweeId: $revieweeId)
+        }`,
+        { revieweeId: sub },
+      )
+      .pipe(map((data) => ({ reviews: data.reviewsByReviewee, average: data.averageRating })));
   }
 
   forTransaction(transactionId: string): Observable<Review[]> {

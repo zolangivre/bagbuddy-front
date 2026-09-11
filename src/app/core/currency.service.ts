@@ -1,4 +1,4 @@
-import { effect, Service, signal } from '@angular/core';
+import { computed, effect, Service, signal } from '@angular/core';
 
 export type Currency = 'EUR' | 'USD';
 const STORAGE_KEY = 'userCurrency';
@@ -14,6 +14,21 @@ export class CurrencyService {
 
   readonly currency = signal<Currency>('EUR');
   readonly locale = signal('en-US');
+
+  /**
+   * Un seul formateur par couple locale / devise : `format()` est appele pour
+   * chaque montant de chaque carte, et c'est la construction qui coute.
+   */
+  private readonly formatter = computed(
+    () =>
+      new Intl.NumberFormat(this.locale(), {
+        style: 'currency',
+        currency: this.currency(),
+        currencyDisplay: 'symbol',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+  );
 
   constructor() {
     try {
@@ -44,15 +59,7 @@ export class CurrencyService {
     const amount = typeof amountUsd === 'string' ? Number.parseFloat(amountUsd) : amountUsd;
     if (amount === null || amount === undefined || Number.isNaN(amount)) return '–';
 
-    const currency = this.currency();
-    const converted = currency === 'EUR' ? amount * this.usdToEur : amount;
-
-    return new Intl.NumberFormat(this.locale(), {
-      style: 'currency',
-      currency,
-      currencyDisplay: 'symbol',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(converted);
+    const converted = this.currency() === 'EUR' ? amount * this.usdToEur : amount;
+    return this.formatter().format(converted);
   }
 }

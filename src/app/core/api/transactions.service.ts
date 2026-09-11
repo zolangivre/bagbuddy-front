@@ -17,6 +17,12 @@ const TRANSACTION_FIELDS = `
   }
 `;
 
+export interface TransactionStats {
+  count: number;
+  earned: number;
+  spent: number;
+}
+
 /**
  * Schema GraphQL de transactionservice, servi sur /transactions/graphql.
  *
@@ -82,6 +88,32 @@ export class TransactionsService {
         { sellerId: sub },
       )
       .pipe(map((data) => data.totalEarned));
+  }
+
+  /**
+   * Les trois chiffres du profil en un seul aller-retour. `countForUser`,
+   * `totalEarned` et `totalSpent` restent pour qui n'en veut qu'un, mais trois
+   * appels sur le meme schema, c'etaient trois POST et trois verifications de
+   * jeton pour une seule question.
+   */
+  statsForUser(sub: string): Observable<TransactionStats> {
+    return this.gql
+      .request<{ transactionCount: number; totalEarned: number; totalSpent: number }>(
+        'transactions',
+        `query($sub: String!) {
+          transactionCount(userId: $sub)
+          totalEarned(sellerId: $sub)
+          totalSpent(buyerId: $sub)
+        }`,
+        { sub },
+      )
+      .pipe(
+        map((data) => ({
+          count: data.transactionCount,
+          earned: data.totalEarned,
+          spent: data.totalSpent,
+        })),
+      );
   }
 
   /** Seuls l'annonce et le poids partent : le total est tarife par le serveur. */

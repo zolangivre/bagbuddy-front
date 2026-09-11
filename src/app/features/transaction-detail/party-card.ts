@@ -8,6 +8,7 @@ import { ListingInfo, Transaction } from '../../core/models';
 import { TRANSACTION_STATUS } from '../../core/transaction-status';
 import { Icon } from '../../shared/icon/icon';
 import { Avatar } from '../../shared/ui/avatar';
+import { T } from '../../shared/ui/t';
 
 /**
  * Portage de TransactionDetailComponents/SellerInformationCard.js +
@@ -15,7 +16,7 @@ import { Avatar } from '../../shared/ui/avatar';
  */
 @Component({
   selector: 'bb-party-card',
-  imports: [Avatar, Icon],
+  imports: [T, Avatar, Icon],
   template: `
     <section class="bb-card">
       <div class="party">
@@ -24,7 +25,7 @@ import { Avatar } from '../../shared/ui/avatar';
           <span class="bb-card-title">{{ counterpartName() }}</span>
           <span class="bb-body-2">
             ★ {{ averageRating() === null ? 'N/A' : averageRating()!.toFixed(1) }} •
-            {{ isSeller() ? i18n.t('buyer') : i18n.t('seller') }}
+            <bb-t [key]="isSeller() ? 'buyer' : 'seller'" [reserve]="['buyer', 'seller']" />
           </span>
         </span>
       </div>
@@ -32,12 +33,12 @@ import { Avatar } from '../../shared/ui/avatar';
       <div class="route">
         <span class="airport">
           <strong class="bb-card-title">{{ listing().departureAirport }}</strong>
-          <span class="bb-body-2">{{ i18n.t('departure') }}</span>
+          <span class="bb-body-2"><bb-t key="departure" /></span>
         </span>
         <bb-icon name="arrow-right" [size]="24" />
         <span class="airport right">
           <strong class="bb-card-title">{{ listing().arrivalAirport }}</strong>
-          <span class="bb-body-2">{{ i18n.t('arrival') }}</span>
+          <span class="bb-body-2"><bb-t key="arrival" /></span>
         </span>
       </div>
 
@@ -63,8 +64,8 @@ import { Avatar } from '../../shared/ui/avatar';
           <span class="left">
             <bb-icon name="scale" [size]="16" />
             <span class="bb-card-title"
-              >{{ listing().remainingWeight }}kg {{ i18n.t('available') }}</span
-            >
+              >{{ listing().remainingWeight }}kg <bb-t key="available"
+            /></span>
           </span>
           <span class="bb-number">{{ currency.format(listing().pricePerKg) }}/kg</span>
         </div>
@@ -118,13 +119,19 @@ import { Avatar } from '../../shared/ui/avatar';
       text-align: right;
     }
 
+    /* Deux moities egales : la date et l'heure changent de format avec la
+       langue (« 06:00 PM » vs « 18:00 »), la colonne ne doit pas bouger. */
     .times {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       align-items: center;
-      justify-content: space-between;
       gap: 12px;
       max-width: 560px;
       margin-bottom: 20px;
+    }
+
+    .times .time:last-child {
+      justify-content: flex-end;
     }
 
     .time {

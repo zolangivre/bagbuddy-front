@@ -1,25 +1,31 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { catchError, map, of } from 'rxjs';
+import { GraphQlError } from '../../core/api/graphql.client';
+import { LoadErrorKey, loadErrorKey } from '../../core/api/load-error';
 import { ReviewsService } from '../../core/api/reviews.service';
 import { TransactionsService } from '../../core/api/transactions.service';
 import { TripsService } from '../../core/api/trips.service';
+import { UsersService } from '../../core/api/users.service';
 import { initialsOf } from '../../core/format';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { Review, UserInfoView } from '../../core/models';
+import { PublicUserProfile, Review, UserInfoView } from '../../core/models';
 import { Icon } from '../../shared/icon/icon';
 import { IconButton } from '../../shared/ui/icon-button';
+import { LoadError } from '../../shared/ui/load-error';
 import { Loader } from '../../shared/ui/loader';
 import { ReviewCard } from '../../shared/ui/review-card';
+import { T } from '../../shared/ui/t';
 
 /**
  * Portage de app/profile-view.js : profil public d'un autre utilisateur.
  * Le mobile passe l'objet userInfo en parametre de navigation ; ici la route
- * porte le `sub` et le profil est retrouve via les annonces actives, seule
- * source publique de ces informations (il n'y a pas de route /users cote back).
+ * porte le `sub` et l'identite vient de `users.publicProfile(sub)` (nom, bio,
+ * localisation — jamais email ni telephone).
  */
 @Component({
   selector: 'bb-profile-view-page',
-  imports: [IconButton, ReviewCard, Loader, Icon],
+  imports: [T, IconButton, ReviewCard, Loader, LoadError, Icon],
   template: `
     <header class="bb-header-gradient">
       <div class="inner">
@@ -52,11 +58,11 @@ import { ReviewCard } from '../../shared/ui/review-card';
                 averageRating() === null ? 'N/A' : averageRating()!.toFixed(1)
               }}</strong>
             </span>
-            <span class="bb-body-3">{{ i18n.t('rating') }}</span>
+            <span class="bb-body-3"><bb-t key="rating" /></span>
           </div>
           <div class="stat">
             <strong class="bb-title-md">{{ transactionCount() ?? 'N/A' }}</strong>
-            <span class="bb-body-3">{{ i18n.t('transactions') }}</span>
+            <span class="bb-body-3"><bb-t key="transactions" /></span>
           </div>
         </section>
 
@@ -67,7 +73,9 @@ import { ReviewCard } from '../../shared/ui/review-card';
           </section>
         }
 
-        @if (reviews().length) {
+        @if (loadError(); as error) {
+          <bb-load-error [messageKey]="error" (retry)="loadReviews()" />
+        } @else if (reviews().length) {
           @for (review of reviews(); track review.id) {
             <div class="bb-card">
               <bb-review-card [review]="review" />
@@ -172,13 +180,15 @@ export class ProfileViewPage {
   private readonly reviewsApi = inject(ReviewsService);
   private readonly transactions = inject(TransactionsService);
   private readonly trips = inject(TripsService);
+  private readonly users = inject(UsersService);
 
   protected readonly sub = signal('');
-  protected readonly user = signal<UserInfoView | null>(null);
+  protected readonly user = signal<PublicUserProfile | UserInfoView | null>(null);
   protected readonly reviews = signal<Review[]>([]);
   protected readonly averageRating = signal<number | null>(null);
   protected readonly transactionCount = signal<number | null>(null);
   protected readonly loading = signal(true);
+  protected readonly loadError = signal<LoadErrorKey | null>(null);
 
   protected readonly initials = computed(() => initialsOf(this.user()?.name, 'NN'));
 
@@ -190,23 +200,50 @@ export class ProfileViewPage {
       return;
     }
 
-    this.reviewsApi.forReviewee(sub).subscribe({
-      next: (reviews) => {
-        this.reviews.set(reviews);
-        this.loading.set(false);
-      },
-      error: () => this.loading.set(false),
-    });
-    this.reviewsApi.averageForReviewee(sub).subscribe({
-      next: (average) => this.averageRating.set(average),
-      error: () => this.averageRating.set(null),
-    });
+    this.loadReviews();
     this.transactions.countForUser(sub).subscribe({
       next: (count) => this.transactionCount.set(count),
     });
-    this.trips.byUser(sub).subscribe({
-      next: (listings) => {
-        if (listings.length) this.user.set(listings[0].userInfo);
+    this.loadIdentity(sub);
+  }
+
+  /**
+   * Les annonces etaient la seule source de l'identite : un membre sans annonce
+   * s'affichait sous son `sub` brut. Elles ne servent plus que de repli, pour un
+   * membre qui n'a jamais ouvert l'app web — son profil userservice n'est cree
+   * qu'a son premier `me`, et `user(sub)` repond NOT_FOUND d'ici la.
+   */
+  private loadIdentity(sub: string): void {
+    this.users
+      .publicProfile(sub)
+      .pipe(
+        // Seul NOT_FOUND vaut un repli : hors ligne ou service en panne, la
+        // lecture des annonces echouerait de la meme facon.
+        catchError((error: unknown) =>
+          error instanceof GraphQlError && error.classification === 'NOT_FOUND'
+            ? this.trips.byUser(sub).pipe(
+                map((listings) => listings[0]?.userInfo ?? null),
+                catchError(() => of(null)),
+              )
+            : of(null),
+        ),
+      )
+      .subscribe((profile) => this.user.set(profile));
+  }
+
+  /** Avis et moyenne viennent du meme schema : une seule requete pour les deux. */
+  protected loadReviews(): void {
+    this.loading.set(true);
+    this.loadError.set(null);
+    this.reviewsApi.summaryForReviewee(this.sub()).subscribe({
+      next: ({ reviews, average }) => {
+        this.reviews.set(reviews);
+        this.averageRating.set(average);
+        this.loading.set(false);
+      },
+      error: (error) => {
+        this.loadError.set(loadErrorKey(error));
+        this.loading.set(false);
       },
     });
   }

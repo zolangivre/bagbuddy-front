@@ -344,6 +344,46 @@ button {
   color: var(--bb-text);
 }
 
+/*
+ * Message en tete de formulaire : echec d'envoi (rouge) ou confirmation
+ * (`--success`). Un message qui recoit le focus apres un echec porte
+ * `tabindex="-1"` : pas d'anneau au clic, un anneau a sa couleur au clavier.
+ */
+.bb-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--bb-radius-sm);
+  background: var(--bb-red-a10);
+  color: var(--bb-error);
+  font-size: var(--bb-fs-body-2);
+}
+
+.bb-alert--success {
+  background: var(--bb-green-a10);
+  color: var(--bb-title);
+}
+
+.bb-alert bb-icon {
+  flex: none;
+  margin-top: 1px;
+}
+
+.bb-alert--success bb-icon {
+  color: var(--bb-success);
+}
+
+.bb-alert:focus {
+  outline: none;
+}
+
+.bb-alert:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
 /* En-tete degrade bleu, present sur home / transactions / profil du mobile */
 .bb-header-gradient {
   background: linear-gradient(
@@ -355,7 +395,35 @@ button {
   color: var(--bb-white);
 }
 
+/*
+ * Rangee de bb-stat-card en `stack` : la grille est portee par le parent pour
+ * que les libelles partagent une ligne et les valeurs une autre (subgrid cote
+ * composant), quelle que soit la longueur des libelles.
+ */
+.bb-stat-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 18px;
+}
+
+/*
+ * Le composant rendu par le router est un element inconnu du navigateur, donc
+ * « inline » par defaut : sa mise en page se dimensionne alors sur son contenu,
+ * c'est-a-dire sur la longueur des textes — la page change de largeur avec la
+ * langue. En faire un bloc rend aussi aux gabarits `.bb-page` ci-dessous la
+ * largeur maximale qu'ils declarent.
+ */
+main > *:not(router-outlet) {
+  display: block;
+}
+
 .bb-page {
+  /* `width` explicite : dans un conteneur flex, `margin: 0 auto` annule
+     l'etirement, et le gabarit se dimensionnerait alors sur son contenu —
+     c'est-a-dire sur la longueur des textes. */
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 20px;

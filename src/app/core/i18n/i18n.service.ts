@@ -6,6 +6,7 @@ export type Language = 'en' | 'fr';
 export type TranslationKey = keyof typeof en;
 
 const DICTIONARIES: Record<Language, Record<TranslationKey, string>> = { en, fr };
+const LANGUAGES = Object.keys(DICTIONARIES) as Language[];
 const STORAGE_KEY = 'appLanguage';
 
 /**
@@ -17,6 +18,8 @@ const STORAGE_KEY = 'appLanguage';
 export class I18nService {
   readonly language = signal<Language>('en');
   readonly dictionary = computed(() => DICTIONARIES[this.language()]);
+  /** Toutes les langues connues : `bb-t` s'en sert pour reserver la place. */
+  readonly languages: readonly Language[] = LANGUAGES;
 
   constructor() {
     this.language.set(this.detectInitialLanguage());
@@ -35,7 +38,20 @@ export class I18nService {
 
   /** `t('welcome_back', { name })` — interpolation `{{name}}` comme i18n-js. */
   t(key: TranslationKey, params?: Record<string, string | number>): string {
-    const template = this.dictionary()[key] ?? en[key] ?? String(key);
+    return this.translateIn(this.language(), key, params);
+  }
+
+  /**
+   * Meme traduction, dans une langue imposee. Sert a `bb-t`, qui rend toutes
+   * les langues pour figer la largeur du libelle : sans ca, changer de langue
+   * redimensionne le bouton ou l'onglet qui le porte.
+   */
+  translateIn(
+    language: Language,
+    key: TranslationKey,
+    params?: Record<string, string | number>,
+  ): string {
+    const template = DICTIONARIES[language][key] ?? en[key] ?? String(key);
     if (!params) return template;
     return template.replace(/\{\{(\w+)\}\}/g, (match, name: string) =>
       params[name] === undefined ? match : String(params[name]),

@@ -7,13 +7,14 @@ import {
   formatLocalizedTime,
 } from '../../core/format';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { T } from '../../shared/ui/t';
 import { Listing } from '../../core/models';
 import { Icon } from '../../shared/icon/icon';
 
 /** Portage de components/ListingCard.js : une de mes annonces, cliquable. */
 @Component({
   selector: 'bb-listing-card',
-  imports: [RouterLink, Icon],
+  imports: [T, RouterLink, Icon],
   template: `
     <a class="bb-card" [routerLink]="['/listings', item().id, 'edit']">
       <span class="bb-body-2">{{ i18n.t('listed_on') }} : {{ createdAt() }}</span>
@@ -58,9 +59,7 @@ import { Icon } from '../../shared/icon/icon';
       <div class="footer">
         <span class="left">
           <bb-icon name="scale" [size]="16" />
-          <span class="bb-card-title"
-            >{{ item().remainingWeight }}kg {{ i18n.t('available') }}</span
-          >
+          <span class="bb-card-title">{{ item().remainingWeight }}kg <bb-t key="available" /></span>
         </span>
         <span class="bb-number">{{ currency.format(item().pricePerKg) }}/kg</span>
       </div>
@@ -94,11 +93,18 @@ import { Icon } from '../../shared/icon/icon';
       text-align: right;
     }
 
+    /* Deux moities egales plutot que deux blocs a la largeur de leur texte :
+       la date et l'heure changent de format avec la langue (« 06:00 PM » vs
+       « 18:00 »), la colonne, elle, ne doit pas bouger. */
     .times {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       align-items: center;
-      justify-content: space-between;
       gap: 12px;
+    }
+
+    .times .time:last-child {
+      justify-content: flex-end;
     }
 
     .time {

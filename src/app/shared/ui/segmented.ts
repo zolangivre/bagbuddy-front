@@ -1,10 +1,13 @@
 import { Component, input, model } from '@angular/core';
+import { TranslationKey } from '../../core/i18n/i18n.service';
 import { Icon } from '../icon/icon';
 import { IconName } from '../icon/icons';
+import { T } from './t';
 
 export interface SegmentedOption {
   key: string;
-  label: string;
+  /** Cle de traduction : rendue par `bb-t`, donc de largeur stable. */
+  labelKey: TranslationKey;
   icon?: IconName;
   color: string;
 }
@@ -15,7 +18,7 @@ export interface SegmentedOption {
  */
 @Component({
   selector: 'bb-segmented',
-  imports: [Icon],
+  imports: [Icon, T],
   template: `
     <div class="bar" role="tablist" [attr.aria-label]="label()">
       @for (option of options(); track option.key) {
@@ -30,7 +33,7 @@ export interface SegmentedOption {
           @if (option.icon; as icon) {
             <bb-icon [name]="icon" [size]="20" />
           }
-          {{ option.label }}
+          <bb-t [key]="option.labelKey" />
         </button>
       }
     </div>

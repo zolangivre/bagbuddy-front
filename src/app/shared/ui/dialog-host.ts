@@ -50,6 +50,13 @@ import { Modal } from './modal';
       gap: 12px;
     }
 
+    /* Moities egales : sinon « Annuler » et « Confirmer » se repartissent la
+       ligne selon la longueur de leur libelle, qui depend de la langue. */
+    .actions bb-button {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
     p {
       margin: 0;
     }

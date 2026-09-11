@@ -1,8 +1,9 @@
 import { NgOptimizedImage } from '@angular/common';
 import { Component, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { I18nService } from '../../core/i18n/i18n.service';
+import { I18nService, TranslationKey } from '../../core/i18n/i18n.service';
 import { Icon } from '../../shared/icon/icon';
+import { T } from '../../shared/ui/t';
 
 /**
  * Cadre commun a la connexion et a l'inscription.
@@ -15,13 +16,13 @@ import { Icon } from '../../shared/icon/icon';
  */
 @Component({
   selector: 'bb-auth-shell',
-  imports: [RouterLink, NgOptimizedImage, Icon],
+  imports: [RouterLink, NgOptimizedImage, Icon, T],
   template: `
     <div class="screen">
       <header class="bar bb-page">
         <a class="brand" routerLink="/start">
           <span class="mark">
-            <img ngSrc="/logo.png" width="24" height="36" alt="" />
+            <img ngSrc="/logo.webp" width="24" height="36" alt="" />
           </span>
           BagBuddy
         </a>
@@ -49,8 +50,8 @@ import { Icon } from '../../shared/icon/icon';
       <main class="bb-page">
         <div class="pass">
           <section class="form">
-            <h1 class="bb-title-md">{{ title() }}</h1>
-            <p class="bb-body-2 lede">{{ lede() }}</p>
+            <h1 class="bb-title-md"><bb-t [key]="titleKey()" /></h1>
+            <p class="bb-body-2 lede"><bb-t [key]="ledeKey()" /></p>
             <ng-content />
           </section>
 
@@ -63,15 +64,15 @@ import { Icon } from '../../shared/icon/icon';
             <ul>
               <li>
                 <bb-icon name="plane-takeoff" [size]="18" />
-                {{ i18n.t('auth_promise_one') }}
+                <bb-t key="auth_promise_one" />
               </li>
               <li>
                 <bb-icon name="dollar-sign" [size]="18" />
-                {{ i18n.t('auth_promise_two') }}
+                <bb-t key="auth_promise_two" />
               </li>
               <li>
                 <bb-icon name="shield" [size]="18" />
-                {{ i18n.t('auth_promise_three') }}
+                <bb-t key="auth_promise_three" />
               </li>
             </ul>
           </aside>
@@ -242,15 +243,24 @@ import { Icon } from '../../shared/icon/icon';
       margin-top: 2px;
     }
 
+    /* Question et lien projetes cote a cote. L'espace vient du gap et non du
+       texte : Angular supprime l'espace seul entre deux elements, et
+       <bb-t /> <a> se collerait. */
     .switch {
       margin: 0;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      column-gap: 6px;
       font-size: var(--bb-fs-body-2);
       color: var(--bb-text);
     }
 
     @media (min-width: 900px) {
+      /* Colonne de formulaire bornee, et non dimensionnee sur son contenu :
+         sinon la carte entiere s'elargit en francais. */
       .pass {
-        grid-template-columns: minmax(0, 1fr) 300px;
+        grid-template-columns: minmax(0, 580px) 300px;
       }
 
       .form {
@@ -284,6 +294,8 @@ import { Icon } from '../../shared/icon/icon';
 export class AuthShell {
   protected readonly i18n = inject(I18nService);
 
-  readonly title = input('');
-  readonly lede = input('');
+  /** Cles de traduction : rendues par `bb-t`, la carte garde donc la meme
+   * taille d'une langue a l'autre. */
+  readonly titleKey = input.required<TranslationKey>();
+  readonly ledeKey = input.required<TranslationKey>();
 }

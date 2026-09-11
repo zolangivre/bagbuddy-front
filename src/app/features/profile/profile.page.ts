@@ -1,7 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ReviewsService } from '../../core/api/reviews.service';
-import { TransactionsService } from '../../core/api/transactions.service';
+import { LoadErrorKey, loadErrorKey } from '../../core/api/load-error';
+import { TransactionStats, TransactionsService } from '../../core/api/transactions.service';
 import { TripsService } from '../../core/api/trips.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { ConfirmService } from '../../core/confirm.service';
@@ -14,16 +15,20 @@ import { Icon } from '../../shared/icon/icon';
 import { Avatar } from '../../shared/ui/avatar';
 import { Badge } from '../../shared/ui/badge';
 import { IconButton } from '../../shared/ui/icon-button';
+import { LoadError } from '../../shared/ui/load-error';
 import { Loader } from '../../shared/ui/loader';
 import { PageHeader } from '../../shared/ui/page-header';
 import { ReviewCard } from '../../shared/ui/review-card';
 import { Segmented, SegmentedOption } from '../../shared/ui/segmented';
 import { StatCard } from '../../shared/ui/stat-card';
+import { T } from '../../shared/ui/t';
 
 /** Portage de app/(tabs)/profile.js. */
 @Component({
   selector: 'bb-profile-page',
   imports: [
+    T,
+    LoadError,
     RouterLink,
     PageHeader,
     IconButton,
@@ -59,11 +64,14 @@ import { StatCard } from '../../shared/ui/stat-card';
         <p class="bb-body-2 email">{{ user()?.email }}</p>
 
         <bb-badge
-          [text]="user()?.email_verified ? i18n.t('verified') : i18n.t('not_verified')"
           [background]="user()?.email_verified ? 'var(--bb-green-a10)' : 'var(--bb-red-a10)'"
           [color]="user()?.email_verified ? 'var(--bb-success)' : 'var(--bb-error)'"
         >
           <bb-icon name="shield" [size]="16" />
+          <bb-t
+            [key]="user()?.email_verified ? 'verified' : 'not_verified'"
+            [reserve]="['verified', 'not_verified']"
+          />
         </bb-badge>
 
         @if (user()?.bio) {
@@ -73,27 +81,26 @@ import { StatCard } from '../../shared/ui/stat-card';
         <div class="stats">
           <bb-stat-card
             icon="trending-up"
-            [value]="currency.format(totalEarned())"
-            [label]="i18n.t('total_earned')"
-            background="var(--bb-green-a10)"
-            borderColor="var(--bb-green-a20)"
-            iconColor="var(--bb-success)"
-            valueColor="var(--bb-success)"
-            labelColor="var(--bb-text)"
+            [value]="currency.format(stats()?.earned)"
+            labelKey="total_earned"
+            tone="success"
+            layout="inline"
           />
           <bb-stat-card
             icon="activity"
-            [value]="currency.format(totalSpent())"
-            [label]="i18n.t('total_spent')"
-            background="var(--bb-cyan-a10)"
-            borderColor="var(--bb-cyan-a20)"
-            iconColor="var(--bb-primary)"
-            valueColor="var(--bb-primary)"
-            labelColor="var(--bb-text)"
+            [value]="currency.format(stats()?.spent)"
+            labelKey="total_spent"
+            tone="primary"
+            layout="inline"
+          />
+          <bb-stat-card
+            icon="credit-card"
+            [value]="stats()?.count.toString() ?? '–'"
+            labelKey="transactions"
+            tone="neutral"
+            layout="inline"
           />
         </div>
-
-        <p class="bb-body-3 count">{{ transactionCount() ?? 0 }} {{ i18n.t('transactions_1') }}</p>
       </aside>
 
       <section class="panel">
@@ -103,12 +110,14 @@ import { StatCard } from '../../shared/ui/stat-card';
           @case ('listings') {
             <section class="bb-card">
               <div class="section-head">
-                <h2 class="bb-card-title">{{ i18n.t('active_listings') }}</h2>
-                <a class="bb-highlight" routerLink="/listings">{{ i18n.t('view_all') }}</a>
+                <h2 class="bb-card-title"><bb-t key="active_listings" /></h2>
+                <a class="bb-highlight" routerLink="/listings"><bb-t key="view_all" /></a>
               </div>
 
               @if (loadingListings()) {
                 <bb-loader [size]="36" [label]="i18n.t('loading')" />
+              } @else if (listingsError(); as error) {
+                <bb-load-error [messageKey]="error" (retry)="loadListings()" />
               } @else if (listings().length) {
                 <ul class="rows">
                   @for (listing of listings().slice(0, 5); track listing.id) {
@@ -146,12 +155,14 @@ import { StatCard } from '../../shared/ui/stat-card';
           @case ('reviews') {
             <section class="bb-card">
               <div class="section-head">
-                <h2 class="bb-card-title">{{ i18n.t('reviews') }}</h2>
-                <a class="bb-highlight" routerLink="/reviews">{{ i18n.t('view_all') }}</a>
+                <h2 class="bb-card-title"><bb-t key="reviews" /></h2>
+                <a class="bb-highlight" routerLink="/reviews"><bb-t key="view_all" /></a>
               </div>
 
               @if (loadingReviews()) {
                 <bb-loader [size]="36" [label]="i18n.t('loading')" />
+              } @else if (reviewsError(); as error) {
+                <bb-load-error [messageKey]="error" (retry)="loadReviews()" />
               } @else if (reviews().length) {
                 <ul class="rows rows--plain">
                   @for (review of reviews().slice(0, 5); track review.id) {
@@ -264,8 +275,7 @@ import { StatCard } from '../../shared/ui/stat-card';
     }
 
     .email,
-    .bio,
-    .count {
+    .bio {
       margin: 0;
     }
 
@@ -277,11 +287,15 @@ import { StatCard } from '../../shared/ui/stat-card';
       max-width: 40ch;
     }
 
+    /* La colonne d'identite est etroite : les chiffres s'y lisent mieux en
+       lignes qu'en colonnes. */
     .stats {
       display: flex;
-      gap: 12px;
+      flex-direction: column;
       width: 100%;
-      margin-top: 4px;
+      margin-top: 12px;
+      padding-top: 4px;
+      border-top: 1px solid var(--bb-border);
     }
 
     .panel {
@@ -464,46 +478,63 @@ export class ProfilePage {
   protected readonly tab = signal('listings');
   protected readonly listings = signal<Listing[]>([]);
   protected readonly reviews = signal<Review[]>([]);
-  protected readonly transactionCount = signal<number | null>(null);
-  protected readonly totalEarned = signal(0);
-  protected readonly totalSpent = signal(0);
+  /** Null tant que la lecture n'a pas abouti : les champs affichent « – », pas 0. */
+  protected readonly stats = signal<TransactionStats | null>(null);
   protected readonly loadingListings = signal(false);
   protected readonly loadingReviews = signal(false);
+  protected readonly listingsError = signal<LoadErrorKey | null>(null);
+  protected readonly reviewsError = signal<LoadErrorKey | null>(null);
 
   protected readonly user = this.auth.userInfo;
   protected readonly initials = computed(() => initialsOf(this.user()?.name, '?'));
 
   protected readonly tabs = computed<SegmentedOption[]>(() => [
-    { key: 'listings', label: this.i18n.t('listings'), color: 'var(--bb-primary-strong)' },
-    { key: 'reviews', label: this.i18n.t('reviews'), color: 'var(--bb-success-strong)' },
-    { key: 'settings', label: this.i18n.t('settings'), color: 'var(--bb-warning-strong)' },
+    { key: 'listings', labelKey: 'listings', color: 'var(--bb-primary-strong)' },
+    { key: 'reviews', labelKey: 'reviews', color: 'var(--bb-success-strong)' },
+    { key: 'settings', labelKey: 'settings', color: 'var(--bb-warning-strong)' },
   ]);
 
   constructor() {
     const sub = this.user()?.sub;
     if (!sub) return;
 
+    this.loadListings();
+    this.loadReviews();
+    this.transactions.statsForUser(sub).subscribe({ next: (stats) => this.stats.set(stats) });
+  }
+
+  protected loadListings(): void {
+    const sub = this.user()?.sub;
+    if (!sub) return;
     this.loadingListings.set(true);
+    this.listingsError.set(null);
     this.trips.byUser(sub).subscribe({
       next: (listings) => {
         this.listings.set(Array.isArray(listings) ? listings : []);
         this.loadingListings.set(false);
       },
-      error: () => this.loadingListings.set(false),
+      error: (error) => {
+        this.listingsError.set(loadErrorKey(error));
+        this.loadingListings.set(false);
+      },
     });
+  }
 
+  protected loadReviews(): void {
+    const sub = this.user()?.sub;
+    if (!sub) return;
     this.loadingReviews.set(true);
+    this.reviewsError.set(null);
     this.reviewsApi.forReviewee(sub).subscribe({
       next: (reviews) => {
         this.reviews.set(reviews);
         this.loadingReviews.set(false);
       },
-      error: () => this.loadingReviews.set(false),
+      error: (error) => {
+        this.reviewsError.set(loadErrorKey(error));
+        this.loadingReviews.set(false);
+      },
     });
-
-    this.transactions.countForUser(sub).subscribe({ next: (c) => this.transactionCount.set(c) });
-    this.transactions.totalEarned(sub).subscribe({ next: (t) => this.totalEarned.set(t ?? 0) });
-    this.transactions.totalSpent(sub).subscribe({ next: (t) => this.totalSpent.set(t ?? 0) });
   }
 
   protected date(value?: string): string {

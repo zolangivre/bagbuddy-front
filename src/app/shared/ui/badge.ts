@@ -34,6 +34,11 @@ import { Component, input } from '@angular/core';
 export class Badge {
   readonly text = input('');
   readonly background = input('var(--bb-cyan-a10)');
-  readonly borderColor = input('transparent');
+  /**
+   * Par defaut un liseré tire du texte lui-meme : toutes les pastilles ont
+   * ainsi le meme contour, quelle que soit leur teinte, sans avoir a le
+   * repeter a chaque appel.
+   */
+  readonly borderColor = input('color-mix(in srgb, currentColor 22%, transparent)');
   readonly color = input('var(--bb-primary)');
 }

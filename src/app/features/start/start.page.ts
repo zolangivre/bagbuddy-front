@@ -7,28 +7,30 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { Icon } from '../../shared/icon/icon';
 import { Button } from '../../shared/ui/button';
 import { HowStep } from '../../shared/ui/how-step';
+import { T } from '../../shared/ui/t';
 import { RoundIcon } from '../../shared/ui/round-icon';
 
 /** Portage de app/start.js : vitrine publique + entree vers l'inscription. */
 @Component({
   selector: 'bb-start-page',
-  imports: [NgOptimizedImage, RouterLink, Button, HowStep, RoundIcon, Icon],
+  imports: [T, NgOptimizedImage, RouterLink, Button, HowStep, RoundIcon, Icon],
   template: `
     <div class="screen">
       <div class="bb-page hero">
         <div class="pitch">
           <span class="logo">
-            <img ngSrc="/logo.png" width="115" height="172" alt="" priority />
+            <img ngSrc="/logo.webp" width="56" height="84" alt="" priority />
           </span>
           <h1 class="bb-display">BagBuddy</h1>
-          <p class="lede">{{ i18n.t('start_subtitle') }}</p>
-          <p class="bb-body">{{ i18n.t('start_description') }}</p>
+          <p class="lede"><bb-t key="start_subtitle" /></p>
+          <p class="bb-body"><bb-t key="start_description" /></p>
 
           <div class="cta">
-            <bb-button [text]="i18n.t('start_button')" (pressed)="createAccount()">
+            <bb-button (pressed)="createAccount()">
+              <bb-t key="start_button" />
               <bb-icon slot="right" name="arrow-right" [size]="20" />
             </bb-button>
-            <a class="signin" routerLink="/signin">{{ i18n.t('sign_in') }}</a>
+            <a class="signin" routerLink="/signin"><bb-t key="sign_in" /></a>
           </div>
 
           <div class="lang">
@@ -74,12 +76,12 @@ import { RoundIcon } from '../../shared/ui/round-icon';
                   <span class="bb-time">16:10</span>
                 </span>
               </div>
-              <p class="bb-body-3">{{ i18n.t('sample_conditions') }}</p>
+              <p class="bb-body-3"><bb-t key="sample_conditions" /></p>
             </div>
             <div class="pass-stub">
-              <span class="bb-body-3">{{ i18n.t('available_weight') }}</span>
+              <span class="bb-body-3"><bb-t key="available_weight" /></span>
               <span class="bb-amount">8 kg</span>
-              <span class="bb-body-3">{{ i18n.t('price_per_kg') }}</span>
+              <span class="bb-body-3"><bb-t key="price_per_kg" /></span>
               <span class="bb-amount">{{ currency.format(9.5) }}</span>
             </div>
           </div>
@@ -96,8 +98,8 @@ import { RoundIcon } from '../../shared/ui/round-icon';
                 [background]="feature.background"
                 [color]="feature.color"
               />
-              <span class="bb-card-title">{{ i18n.t(feature.titleKey) }}</span>
-              <span class="bb-card-subtitle">{{ i18n.t(feature.descriptionKey) }}</span>
+              <span class="bb-card-title"><bb-t [key]="feature.titleKey" /></span>
+              <span class="bb-card-subtitle"><bb-t [key]="feature.descriptionKey" /></span>
             </div>
           }
         </section>
@@ -107,18 +109,18 @@ import { RoundIcon } from '../../shared/ui/round-icon';
           <div class="steps">
             <bb-how-step
               [number]="1"
-              [title]="i18n.t('step_one_title')"
-              [subtitle]="i18n.t('step_one_description')"
+              titleKey="step_one_title"
+              subtitleKey="step_one_description"
             />
             <bb-how-step
               [number]="2"
-              [title]="i18n.t('step_two_title')"
-              [subtitle]="i18n.t('step_two_description')"
+              titleKey="step_two_title"
+              subtitleKey="step_two_description"
             />
             <bb-how-step
               [number]="3"
-              [title]="i18n.t('step_three_title')"
-              [subtitle]="i18n.t('step_three_description')"
+              titleKey="step_three_title"
+              subtitleKey="step_three_description"
               color="var(--bb-success)"
               background="var(--bb-green-a10)"
             />
@@ -164,10 +166,12 @@ import { RoundIcon } from '../../shared/ui/round-icon';
       box-shadow: 0 18px 40px rgba(3, 105, 161, 0.28);
     }
 
+    /* Hauteur de la pastille, largeur au ratio du fichier (2:3) : une image
+       etiree en carre puis ramenee par object-fit fait diverger le ratio rendu
+       du ratio reel, ce que NgOptimizedImage signale (NG02952). */
     .logo img {
-      width: 100%;
+      width: auto;
       height: 100%;
-      object-fit: contain;
     }
 
     h1 {

@@ -31,18 +31,14 @@ import { RoundIcon } from '../../shared/ui/round-icon';
         <div class="steps">
           <bb-how-step
             [number]="1"
-            [title]="i18n.t('list_your_flight')"
-            [subtitle]="i18n.t('add_your_flight_details')"
+            titleKey="list_your_flight"
+            subtitleKey="add_your_flight_details"
           />
-          <bb-how-step
-            [number]="2"
-            [title]="i18n.t('get_requests')"
-            [subtitle]="i18n.t('travelers_will_send_you')"
-          />
+          <bb-how-step [number]="2" titleKey="get_requests" subtitleKey="travelers_will_send_you" />
           <bb-how-step
             [number]="3"
-            [title]="i18n.t('meet_and_earn')"
-            [subtitle]="i18n.t('meet_at_the_airport')"
+            titleKey="meet_and_earn"
+            subtitleKey="meet_at_the_airport"
             color="var(--bb-success)"
             background="var(--bb-green-a10)"
           />

@@ -7,6 +7,7 @@ import { Icon } from '../icon/icon';
 import { AirportInput } from './airport-input';
 import { Button } from './button';
 import { Modal } from './modal';
+import { T } from './t';
 import { TextField } from './text-field';
 
 /**
@@ -19,7 +20,7 @@ import { TextField } from './text-field';
  */
 @Component({
   selector: 'bb-filters',
-  imports: [NgTemplateOutlet, Icon, Modal, Button, AirportInput, TextField],
+  imports: [T, NgTemplateOutlet, Icon, Modal, Button, AirportInput, TextField],
   template: `
     <ng-template #fields>
       <div class="pair">
@@ -28,7 +29,7 @@ import { TextField } from './text-field';
       </div>
 
       <fieldset>
-        <legend class="bb-section-title">{{ i18n.t('price_range') }}</legend>
+        <legend class="bb-section-title"><bb-t key="price_range" /></legend>
         <div class="pair">
           <bb-text-field
             label="Min"
@@ -48,7 +49,7 @@ import { TextField } from './text-field';
       </fieldset>
 
       <fieldset>
-        <legend class="bb-section-title">{{ i18n.t('weight_range') }}</legend>
+        <legend class="bb-section-title"><bb-t key="weight_range" /></legend>
         <div class="pair">
           <bb-text-field
             label="Min"
@@ -80,10 +81,10 @@ import { TextField } from './text-field';
       }
 
       <div class="actions">
-        <bb-button [text]="i18n.t('apply_filters')" (pressed)="apply()" />
+        <bb-button (pressed)="apply()"><bb-t key="apply_filters" /></bb-button>
         <button type="button" class="clear" (click)="clear()">
           <bb-icon name="eraser" [size]="18" />
-          {{ i18n.t('clear_filters') }}
+          <bb-t key="clear_filters" />
         </button>
       </div>
     </ng-template>

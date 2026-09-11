@@ -4,6 +4,7 @@ import { TRANSACTION_STATUS } from '../../core/transaction-status';
 import { Icon } from '../icon/icon';
 import { IconName } from '../icon/icons';
 import { Badge } from './badge';
+import { T } from './t';
 
 interface BadgeStyle {
   labelKey: TranslationKey;
@@ -92,16 +93,12 @@ const STYLES: Record<string, BadgeStyle> = {
 
 @Component({
   selector: 'bb-status-badge',
-  imports: [Badge, Icon],
+  imports: [T, Badge, Icon],
   template: `
     @if (style(); as s) {
-      <bb-badge
-        [text]="i18n.t(s.labelKey)"
-        [background]="s.background"
-        [borderColor]="s.border"
-        [color]="s.color"
-      >
+      <bb-badge [background]="s.background" [borderColor]="s.border" [color]="s.color">
         <bb-icon [name]="s.icon" [size]="16" />
+        <bb-t [key]="s.labelKey" />
       </bb-badge>
     }
   `,

@@ -28,9 +28,9 @@ export const en = {
   //Home screen
   welcome_back: 'Welcome back, {{name}}!',
   find_luggage_space: 'Find luggage space or earn from your extra weight',
-  active_routes: 'Active Routes',
+  active_routes: 'Active routes',
   available: 'available',
-  avg_price: 'Avg Price',
+  avg_price: 'Avg price',
   search_placeholder: 'Search for kilos...',
   buy_weight: 'Buy weight',
   sell_weight: 'Sell weight',
@@ -144,7 +144,7 @@ export const en = {
   error_updating_trip: 'Error updating listing.',
 
   //Status
-  browse_listings: 'Browse Listings',
+  browse_listings: 'Browse listings',
   waiting_for_response: 'Waiting for response',
   request_rejected: 'Request rejected',
   payment_required: 'Payment required',
@@ -285,6 +285,8 @@ export const en = {
     'There was an error accepting the reservation request. Please try again later.',
   request_declined_title: 'Request declined',
   request_declined_message: 'You have declined the reservation request.',
+  request_declined_description:
+    'You declined the request from {{buyer}} for {{weight}}. They can send a new one.',
   request_declined_error_message:
     'There was an error declining the reservation request. Please try again later.',
   payment_completed_title: 'Payment completed',
@@ -385,7 +387,7 @@ export const en = {
   sign_in_lede: 'Sign in to book kilos or manage your listings.',
   sign_up: 'Create an account',
   sign_up_title: 'Create your account',
-  sign_up_lede: 'Four fields, and you can start buying or selling baggage space.',
+  sign_up_lede: 'Five fields, and you can start buying or selling baggage space.',
   password: 'Password',
   password_placeholder: 'Enter your password',
   password_hint: 'At least 8 characters',
@@ -428,4 +430,25 @@ export const en = {
   profile_updated: 'Your profile has been updated.',
   password_updated: 'Your password has been updated.',
   saving: 'Saving...',
+
+  // Chargement en echec : ce que l'ecran affiche a la place d'une liste vide
+  load_error: "This couldn't be loaded.",
+  load_error_offline: "Can't reach BagBuddy. Check your connection and try again.",
+  load_error_unavailable: 'This service is temporarily unavailable. Try again in a moment.',
+  retry: 'Try again',
+
+  // Inscription : confirmation du mot de passe, erreurs et compte cree sans connexion
+  confirm_password: 'Confirm password',
+  confirm_password_placeholder: 'Enter your password again',
+  error_confirm_password_required: 'Confirm your password.',
+  error_name_too_long: 'Use 60 characters at most.',
+  error_email_too_long: 'This email is too long.',
+  error_password_too_long: 'Use 128 characters at most.',
+  error_sign_up_unavailable: 'Sign-up is unavailable right now. Try again in a moment.',
+  error_sign_up_rejected: 'Some details were rejected. Check the form and try again.',
+  error_sign_up_failed: "Your account couldn't be created. Try again in a moment.",
+  sign_in_with_this_email: 'Sign in with this email',
+  account_created_title: 'Your account is ready',
+  account_created_sign_in:
+    "We couldn't sign you in automatically. Sign in with your new password to continue.",
 };

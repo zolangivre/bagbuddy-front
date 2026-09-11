@@ -6,6 +6,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { Icon } from '../icon/icon';
 import { IconName } from '../icon/icons';
 import { Avatar } from './avatar';
+import { T } from './t';
 
 interface NavItem {
   path: string;
@@ -21,7 +22,7 @@ interface NavItem {
  */
 @Component({
   selector: 'bb-app-nav',
-  imports: [RouterLink, RouterLinkActive, Icon, Avatar],
+  imports: [RouterLink, RouterLinkActive, Icon, Avatar, T],
   template: `
     <nav class="top" [attr.aria-label]="i18n.t('home')">
       <a class="brand" routerLink="/home">
@@ -40,7 +41,7 @@ interface NavItem {
               [style.--active-color]="item.color"
             >
               <bb-icon [name]="item.icon" [size]="20" />
-              {{ i18n.t(item.labelKey) }}
+              <bb-t [key]="item.labelKey" />
             </a>
           </li>
         }
@@ -55,7 +56,7 @@ interface NavItem {
       @for (item of items; track item.path) {
         <a [routerLink]="item.path" routerLinkActive="active" [style.--active-color]="item.color">
           <bb-icon [name]="item.icon" [size]="24" />
-          <span>{{ i18n.t(item.labelKey) }}</span>
+          <bb-t [key]="item.labelKey" />
         </a>
       }
     </nav>

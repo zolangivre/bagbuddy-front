@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FieldTree, FormField, form, min, required } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
+import { LoadErrorKey, loadErrorKey } from '../../core/api/load-error';
 import { TripsService } from '../../core/api/trips.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { ConfirmService } from '../../core/confirm.service';
@@ -11,9 +12,11 @@ import { Icon } from '../../shared/icon/icon';
 import { AirportInput } from '../../shared/ui/airport-input';
 import { Button } from '../../shared/ui/button';
 import { IconButton } from '../../shared/ui/icon-button';
+import { LoadError } from '../../shared/ui/load-error';
 import { Loader } from '../../shared/ui/loader';
 import { SubHeader } from '../../shared/ui/sub-header';
 import { TextField } from '../../shared/ui/text-field';
+import { T } from '../../shared/ui/t';
 
 interface ListingForm {
   departure: string;
@@ -28,7 +31,18 @@ interface ListingForm {
 /** Portage de app/edit-listing.js : creation et edition d'une annonce. */
 @Component({
   selector: 'bb-edit-listing-page',
-  imports: [SubHeader, IconButton, TextField, AirportInput, Button, Loader, Icon, FormField],
+  imports: [
+    T,
+    SubHeader,
+    IconButton,
+    TextField,
+    AirportInput,
+    Button,
+    Loader,
+    LoadError,
+    Icon,
+    FormField,
+  ],
   template: `
     <bb-sub-header
       [title]="listingId() ? i18n.t('edit_listing') : i18n.t('create_new_listing')"
@@ -47,6 +61,10 @@ interface ListingForm {
 
     @if (loading()) {
       <bb-loader [label]="i18n.t('loading')" />
+    } @else if (loadError(); as error) {
+      <div class="bb-page">
+        <bb-load-error [messageKey]="error" (retry)="load()" />
+      </div>
     } @else {
       <form class="bb-page content bb-with-rail bb-with-rail--aside" (submit)="save($event)">
         <div class="fields-column">
@@ -144,11 +162,12 @@ interface ListingForm {
               {{ i18n.t('fee') }} : {{ currency.format(totals().fee) }}
             </p>
 
-            <bb-button
-              type="submit"
-              [text]="listingId() ? i18n.t('update_listing') : i18n.t('create_listing')"
-              [disabled]="saving()"
-            />
+            <bb-button type="submit" [disabled]="saving()">
+              <bb-t
+                [key]="listingId() ? 'update_listing' : 'create_listing'"
+                [reserve]="['update_listing', 'create_listing']"
+              />
+            </bb-button>
           </section>
 
           <section class="tips">
@@ -273,6 +292,7 @@ export class EditListingPage {
 
   protected readonly listingId = signal<string | null>(null);
   protected readonly loading = signal(false);
+  protected readonly loadError = signal<LoadErrorKey | null>(null);
   protected readonly saving = signal(false);
 
   /** Poids deja vendu, conserve pour recalculer le total comme le mobile. */
@@ -319,7 +339,18 @@ export class EditListingPage {
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) return;
     this.listingId.set(id);
+    this.load();
+  }
+
+  /**
+   * Sans etat d'erreur, un echec ici laissait le formulaire vide sous le titre
+   * « Modifier l'annonce » — et l'enregistrer aurait ecrase l'annonce avec.
+   */
+  protected load(): void {
+    const id = this.listingId();
+    if (!id) return;
     this.loading.set(true);
+    this.loadError.set(null);
     this.trips.byId(id).subscribe({
       next: (listing) => {
         this.totalWeightAvailable.set(listing.totalWeightAvailable);
@@ -335,7 +366,10 @@ export class EditListingPage {
         });
         this.loading.set(false);
       },
-      error: () => this.loading.set(false),
+      error: (error) => {
+        this.loadError.set(loadErrorKey(error));
+        this.loading.set(false);
+      },
     });
   }
 

@@ -205,7 +205,7 @@ export const fr: Record<keyof typeof en, string> = {
   requested_weight: 'Poids demandé',
   request_rejected_title: 'Demande refusée',
   request_rejected_description: '{{seller}} a refusé votre demande pour {{weight}}.',
-  reject_request: 'Poids refusée',
+  reject_request: 'Poids refusé',
   try_a_different_amount: 'Essayer un autre poids',
   try_a_different_amount_description:
     'Peut-être que {{seller}} accepterait un poids différent. Essayez d’envoyer une nouvelle demande.',
@@ -290,6 +290,8 @@ export const fr: Record<keyof typeof en, string> = {
     "Une erreur est survenue lors de l'acceptation de la demande de réservation. Veuillez réessayer plus tard.",
   request_declined_title: 'Demande refusée',
   request_declined_message: 'Vous avez refusé la demande de réservation.',
+  request_declined_description:
+    'Vous avez refusé la demande de {{buyer}} pour {{weight}}. Une nouvelle demande reste possible.',
   request_declined_error_message:
     'Une erreur est survenue lors du refus de la demande de réservation. Veuillez réessayer plus tard.',
   payment_completed_title: 'Paiement effectué',
@@ -390,7 +392,7 @@ export const fr: Record<keyof typeof en, string> = {
   sign_in_lede: 'Connectez-vous pour réserver des kilos ou gérer vos annonces.',
   sign_up: 'Créer un compte',
   sign_up_title: 'Créez votre compte',
-  sign_up_lede: 'Quatre champs, et vous pouvez acheter ou vendre des kilos.',
+  sign_up_lede: 'Cinq champs, et vous pouvez acheter ou vendre des kilos.',
   password: 'Mot de passe',
   password_placeholder: 'Entrez votre mot de passe',
   password_hint: '8 caractères minimum',
@@ -434,4 +436,27 @@ export const fr: Record<keyof typeof en, string> = {
   profile_updated: 'Votre profil a été mis à jour.',
   password_updated: 'Votre mot de passe a été mis à jour.',
   saving: 'Enregistrement...',
+
+  // Chargement en échec : ce que l'écran affiche à la place d'une liste vide
+  load_error: 'Le chargement a échoué.',
+  load_error_offline: 'Impossible de joindre BagBuddy. Vérifiez votre connexion et réessayez.',
+  load_error_unavailable: 'Ce service est momentanément indisponible. Réessayez dans un instant.',
+  retry: 'Réessayer',
+
+  // Inscription : confirmation du mot de passe, erreurs et compte créé sans connexion
+  confirm_password: 'Confirmez le mot de passe',
+  confirm_password_placeholder: 'Saisissez-le une seconde fois',
+  error_confirm_password_required: 'Confirmez votre mot de passe.',
+  error_name_too_long: 'Utilisez 60 caractères au maximum.',
+  error_email_too_long: 'Cet email est trop long.',
+  error_password_too_long: 'Utilisez 128 caractères au maximum.',
+  error_sign_up_unavailable:
+    "L'inscription est indisponible pour le moment. Réessayez dans un instant.",
+  error_sign_up_rejected:
+    'Certaines informations ont été refusées. Vérifiez le formulaire et réessayez.',
+  error_sign_up_failed: "Votre compte n'a pas pu être créé. Réessayez dans un instant.",
+  sign_in_with_this_email: 'Se connecter avec cet email',
+  account_created_title: 'Votre compte est créé',
+  account_created_sign_in:
+    "La connexion automatique n'a pas abouti. Connectez-vous avec votre nouveau mot de passe pour continuer.",
 };

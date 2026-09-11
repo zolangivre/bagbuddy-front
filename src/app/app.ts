@@ -5,10 +5,11 @@ import { I18nService } from './core/i18n/i18n.service';
 import { ThemeService } from './core/theme.service';
 import { AppNav } from './shared/ui/app-nav';
 import { DialogHost } from './shared/ui/dialog-host';
+import { T } from './shared/ui/t';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, AppNav, DialogHost],
+  imports: [RouterOutlet, AppNav, DialogHost, T],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })

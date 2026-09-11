@@ -12,6 +12,7 @@ import { Avatar } from '../../shared/ui/avatar';
 import { Badge } from '../../shared/ui/badge';
 import { Button } from '../../shared/ui/button';
 import { SubHeader } from '../../shared/ui/sub-header';
+import { T } from '../../shared/ui/t';
 import { TextField } from '../../shared/ui/text-field';
 
 interface IdentityForm {
@@ -41,7 +42,7 @@ interface PasswordForm {
  */
 @Component({
   selector: 'bb-account-page',
-  imports: [SubHeader, TextField, Button, Avatar, Badge, Icon, FormField],
+  imports: [T, SubHeader, TextField, Button, Avatar, Badge, Icon, FormField],
   template: `
     <bb-sub-header [title]="i18n.t('my_account')" (back)="goBack()" />
 
@@ -55,7 +56,7 @@ interface PasswordForm {
 
           <form (submit)="saveIdentity($event)">
             @if (identityFailure(); as message) {
-              <p class="alert" role="alert">
+              <p class="bb-alert" role="alert">
                 <bb-icon name="circle-alert" [size]="20" />
                 {{ message }}
               </p>
@@ -88,11 +89,11 @@ interface PasswordForm {
               [error]="errorOf(identity.email)"
             />
 
-            <bb-button
-              type="submit"
-              [text]="savingIdentity() ? i18n.t('saving') : i18n.t('save_changes')"
-              [disabled]="savingIdentity()"
-            >
+            <bb-button type="submit" [disabled]="savingIdentity()">
+              <bb-t
+                [key]="savingIdentity() ? 'saving' : 'save_changes'"
+                [reserve]="['saving', 'save_changes']"
+              />
               <bb-icon slot="right" name="save" [size]="20" />
             </bb-button>
           </form>
@@ -130,11 +131,11 @@ interface PasswordForm {
               [rows]="5"
             />
 
-            <bb-button
-              type="submit"
-              [text]="savingProfile() ? i18n.t('saving') : i18n.t('save_changes')"
-              [disabled]="savingProfile()"
-            >
+            <bb-button type="submit" [disabled]="savingProfile()">
+              <bb-t
+                [key]="savingProfile() ? 'saving' : 'save_changes'"
+                [reserve]="['saving', 'save_changes']"
+              />
               <bb-icon slot="right" name="save" [size]="20" />
             </bb-button>
           </form>
@@ -148,7 +149,7 @@ interface PasswordForm {
 
           <form (submit)="savePassword($event)">
             @if (passwordFailure(); as message) {
-              <p class="alert" role="alert">
+              <p class="bb-alert" role="alert">
                 <bb-icon name="circle-alert" [size]="20" />
                 {{ message }}
               </p>
@@ -183,11 +184,11 @@ interface PasswordForm {
               />
             </div>
 
-            <bb-button
-              type="submit"
-              [text]="savingPassword() ? i18n.t('saving') : i18n.t('update_password')"
-              [disabled]="savingPassword()"
-            >
+            <bb-button type="submit" [disabled]="savingPassword()">
+              <bb-t
+                [key]="savingPassword() ? 'saving' : 'update_password'"
+                [reserve]="['saving', 'update_password']"
+              />
               <bb-icon slot="right" name="shield" [size]="20" />
             </bb-button>
           </form>
@@ -202,11 +203,14 @@ interface PasswordForm {
           <p class="bb-title-md name">{{ fullName() }}</p>
 
           <bb-badge
-            [text]="user()?.email_verified ? i18n.t('verified') : i18n.t('not_verified')"
             [background]="user()?.email_verified ? 'var(--bb-green-a10)' : 'var(--bb-red-a10)'"
             [color]="user()?.email_verified ? 'var(--bb-success)' : 'var(--bb-error)'"
           >
             <bb-icon name="shield" [size]="16" />
+            <bb-t
+              [key]="user()?.email_verified ? 'verified' : 'not_verified'"
+              [reserve]="['verified', 'not_verified']"
+            />
           </bb-badge>
 
           @if (location()) {
@@ -260,29 +264,15 @@ interface PasswordForm {
       flex-wrap: wrap;
     }
 
-    /* Les envois n'ont pas besoin de toute la largeur de la carte : on les
-       laisse a la largeur de leur libelle, qui varie avec la langue. */
+    /* Les envois n'ont pas besoin de toute la largeur de la carte : ils tiennent
+       la largeur de leur libelle. Celui-ci passe par <bb-t>, qui reserve la
+       place de la plus longue langue — le bouton garde donc la meme taille en
+       francais et en anglais. */
     form bb-button {
       width: auto;
       align-self: flex-start;
       margin-top: 4px;
       white-space: nowrap;
-    }
-
-    .alert {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 0;
-      padding: 12px 14px;
-      border-radius: var(--bb-radius-sm);
-      background: var(--bb-red-a10);
-      color: var(--bb-error);
-      font-size: var(--bb-fs-body-2);
-    }
-
-    .alert bb-icon {
-      flex: none;
     }
 
     .preview {

@@ -1,5 +1,21 @@
-import { Component, inject, signal } from '@angular/core';
-import { email, FieldTree, form, FormField, required } from '@angular/forms/signals';
+import {
+  afterNextRender,
+  Component,
+  ElementRef,
+  inject,
+  Injector,
+  signal,
+  viewChild,
+} from '@angular/core';
+import {
+  disabled,
+  email,
+  FieldTree,
+  form,
+  FormField,
+  required,
+  submit,
+} from '@angular/forms/signals';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -7,6 +23,7 @@ import { Icon } from '../../shared/icon/icon';
 import { Button } from '../../shared/ui/button';
 import { TextField } from '../../shared/ui/text-field';
 import { messageForAuthError } from './auth-messages';
+import { T } from '../../shared/ui/t';
 import { AuthShell } from './auth-shell';
 
 interface Credentials {
@@ -21,12 +38,12 @@ interface Credentials {
  */
 @Component({
   selector: 'bb-sign-in-page',
-  imports: [RouterLink, FormField, AuthShell, TextField, Button, Icon],
+  imports: [T, RouterLink, FormField, AuthShell, TextField, Button, Icon],
   template: `
-    <bb-auth-shell [title]="i18n.t('sign_in_title')" [lede]="i18n.t('sign_in_lede')">
-      <form (submit)="submit($event)">
+    <bb-auth-shell titleKey="sign_in_title" ledeKey="sign_in_lede">
+      <form novalidate [attr.aria-busy]="submitting()" (submit)="onSubmit($event)">
         @if (failure(); as message) {
-          <p class="alert" role="alert">
+          <p #alert class="bb-alert" role="alert" tabindex="-1">
             <bb-icon name="circle-alert" [size]="20" />
             {{ message }}
           </p>
@@ -51,19 +68,17 @@ interface Credentials {
           [error]="errorOf(credentials.password)"
         />
 
-        <bb-button
-          type="submit"
-          [text]="submitting() ? i18n.t('signing_in') : i18n.t('sign_in')"
-          [disabled]="submitting()"
-        >
+        <bb-button type="submit" [disabled]="submitting()">
+          <bb-t
+            [key]="submitting() ? 'signing_in' : 'sign_in'"
+            [reserve]="['signing_in', 'sign_in']"
+          />
           <bb-icon slot="right" name="log-in" [size]="20" />
         </bb-button>
       </form>
 
-      <span slot="switch">
-        {{ i18n.t('no_account_yet') }}
-        <a class="bb-highlight" routerLink="/signup">{{ i18n.t('sign_up') }}</a>
-      </span>
+      <bb-t slot="switch" key="no_account_yet" />
+      <a slot="switch" class="bb-highlight" routerLink="/signup"><bb-t key="sign_up" /></a>
     </bb-auth-shell>
   `,
   styles: `
@@ -76,22 +91,6 @@ interface Credentials {
     form bb-button {
       margin-top: 8px;
     }
-
-    .alert {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 0;
-      padding: 12px 14px;
-      border-radius: var(--bb-radius-sm);
-      background: var(--bb-red-a10);
-      color: var(--bb-error);
-      font-size: var(--bb-fs-body-2);
-    }
-
-    .alert bb-icon {
-      flex: none;
-    }
   `,
 })
 export class SignInPage {
@@ -99,20 +98,35 @@ export class SignInPage {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly injector = inject(Injector);
+  private readonly alert = viewChild<ElementRef<HTMLElement>>('alert');
 
   protected readonly submitting = signal(false);
   protected readonly failure = signal<string | null>(null);
 
-  protected readonly model = signal<Credentials>({ email: '', password: '' });
+  /**
+   * L'inscription renvoie ici avec `?email=` quand le compte est cree mais que
+   * la connexion automatique a echoue, ou quand l'email est deja pris : il ne
+   * reste que le mot de passe a saisir.
+   */
+  protected readonly model = signal<Credentials>({
+    email: this.route.snapshot.queryParamMap.get('email')?.trim() ?? '',
+    password: '',
+  });
   protected readonly credentials = form(this.model, (path) => {
-    required(path.email, { message: this.i18n.t('error_email_required') });
-    email(path.email, { message: this.i18n.t('error_email_invalid') });
-    required(path.password, { message: this.i18n.t('error_password_required') });
+    disabled(path, { when: () => this.submitting() });
+    required(path.email, { message: () => this.i18n.t('error_email_required') });
+    email(path.email, { message: () => this.i18n.t('error_email_invalid') });
+    required(path.password, { message: () => this.i18n.t('error_password_required') });
   });
 
   constructor() {
     if (this.auth.isSignedIn()) {
       void this.router.navigateByUrl(this.returnUrl());
+      return;
+    }
+    if (this.model().email) {
+      afterNextRender(() => this.credentials.password().focusBoundControl());
     }
   }
 
@@ -122,13 +136,23 @@ export class SignInPage {
     return state.errors()[0]?.message ?? null;
   }
 
-  protected async submit(event: Event): Promise<void> {
+  /** Meme schema que l'inscription : `submit()` touche les champs et valide. */
+  protected async onSubmit(event: Event): Promise<void> {
     event.preventDefault();
-    const state = this.credentials();
-    state.markAsTouched();
-    if (!state.valid() || this.submitting()) return;
-
+    if (this.submitting()) return;
     this.failure.set(null);
+    await submit(this.credentials, {
+      action: () => this.signIn(),
+      onInvalid: () => {
+        const { email, password } = this.credentials;
+        [email, password]
+          .find((field) => field().invalid())?.()
+          .focusBoundControl();
+      },
+    });
+  }
+
+  private async signIn(): Promise<undefined> {
     this.submitting.set(true);
     try {
       const values = this.model();
@@ -136,9 +160,11 @@ export class SignInPage {
       await this.router.navigateByUrl(this.returnUrl());
     } catch (cause) {
       this.failure.set(messageForAuthError(this.i18n, cause));
+      afterNextRender(() => this.alert()?.nativeElement.focus(), { injector: this.injector });
     } finally {
       this.submitting.set(false);
     }
+    return undefined;
   }
 
   /**

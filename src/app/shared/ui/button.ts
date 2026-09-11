@@ -13,7 +13,10 @@ export type ButtonTone = 'primary' | 'success' | 'error' | 'warning';
       (click)="pressed.emit($event)"
     >
       <ng-content select="[slot=left]" />
-      <span>{{ text() }}</span>
+      <!-- Libelle deja resolu via [text] ; sinon on projette, ce qui permet d'y
+           placer un bb-t et de figer la largeur du bouton d'une langue a
+           l'autre. -->
+      <span><ng-content />{{ text() }}</span>
       <ng-content select="[slot=right]" />
     </button>
   `,

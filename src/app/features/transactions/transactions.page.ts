@@ -1,18 +1,23 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { LoadErrorKey, loadErrorKey } from '../../core/api/load-error';
 import { TransactionsService } from '../../core/api/transactions.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { CurrencyService } from '../../core/currency.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { ListingFilters, Transaction } from '../../core/models';
 import { TRANSACTION_STATUS } from '../../core/transaction-status';
-import { Badge } from '../../shared/ui/badge';
 import { Filters } from '../../shared/ui/filters';
+import { LoadError } from '../../shared/ui/load-error';
 import { Loader } from '../../shared/ui/loader';
 import { PageHeader } from '../../shared/ui/page-header';
+import { RevealMore, revealInSlices } from '../../shared/ui/reveal-more';
 import { ResultsHeader } from '../../shared/ui/results-header';
 import { Segmented, SegmentedOption } from '../../shared/ui/segmented';
 import { StatCard } from '../../shared/ui/stat-card';
 import { TransactionCard } from './transaction-card';
+
+/** Lignes rendues par tranche ; voir bb-reveal-more pour le pourquoi. */
+const TRANSACTIONS_PAGE_SIZE = 30;
 
 /** Portage de app/(tabs)/transactions.js. */
 @Component({
@@ -20,37 +25,36 @@ import { TransactionCard } from './transaction-card';
   imports: [
     PageHeader,
     StatCard,
-    Badge,
     Filters,
     ResultsHeader,
     Segmented,
     TransactionCard,
     Loader,
+    LoadError,
+    RevealMore,
   ],
   template: `
     <bb-page-header
       [title]="i18n.t('transactions_title')"
       [subtitle]="i18n.t('transactions_subtitle')"
     >
-      <div class="stats">
+      <div class="bb-stat-row">
         <bb-stat-card
           icon="trending-up"
-          [value]="currency.format(totalEarned())"
-          [label]="i18n.t('total_earned')"
+          [value]="loaded() ? currency.format(totalEarned()) : '–'"
+          labelKey="total_earned"
         />
         <bb-stat-card
           icon="activity"
-          [value]="currency.format(totalSpent())"
-          [label]="i18n.t('total_spent')"
+          [value]="loaded() ? currency.format(totalSpent()) : '–'"
+          labelKey="total_spent"
+        />
+        <bb-stat-card
+          icon="credit-card"
+          [value]="loaded() ? transactions().length.toString() : '–'"
+          labelKey="transactions"
         />
       </div>
-
-      <bb-badge
-        slot="aside"
-        [text]="transactions().length + ' ' + i18n.t('total')"
-        background="rgba(0, 0, 0, 0.18)"
-        color="var(--bb-white)"
-      />
     </bb-page-header>
 
     <div class="bb-page switcher">
@@ -66,6 +70,8 @@ import { TransactionCard } from './transaction-card';
 
           @if (loading()) {
             <bb-loader [label]="i18n.t('loading')" />
+          } @else if (loadError(); as error) {
+            <bb-load-error [messageKey]="error" (retry)="load()" />
           } @else if (visible().length) {
             <div class="list-head" aria-hidden="true">
               <span class="bb-body-3">{{ i18n.t('buyer') }} / {{ i18n.t('seller') }}</span>
@@ -76,10 +82,13 @@ import { TransactionCard } from './transaction-card';
             </div>
 
             <div class="list">
-              @for (transaction of visible(); track transaction.id) {
+              @for (transaction of slices.shown(); track transaction.id) {
                 <bb-transaction-card [transaction]="transaction" />
               }
             </div>
+            @if (slices.hasMore()) {
+              <bb-reveal-more [count]="slices.count()" (reached)="slices.more()" />
+            }
           } @else {
             <p class="bb-empty">
               {{
@@ -94,11 +103,6 @@ import { TransactionCard } from './transaction-card';
     </div>
   `,
   styles: `
-    .stats {
-      display: flex;
-      gap: 12px;
-    }
-
     .switcher {
       padding-top: 20px;
     }
@@ -147,23 +151,27 @@ export class TransactionsPage {
 
   protected readonly transactions = signal<Transaction[]>([]);
   protected readonly loading = signal(false);
+  protected readonly loadError = signal<LoadErrorKey | null>(null);
   protected readonly mode = signal('active');
   protected readonly filters = signal<ListingFilters>({});
 
   protected readonly modes = computed<SegmentedOption[]>(() => [
     {
       key: 'active',
-      label: this.i18n.t('active'),
+      labelKey: 'active',
       icon: 'activity',
       color: 'var(--bb-primary-strong)',
     },
     {
       key: 'completed',
-      label: this.i18n.t('completed'),
+      labelKey: 'completed',
       icon: 'calendar',
       color: 'var(--bb-success-strong)',
     },
   ]);
+
+  /** Faux pendant le chargement et apres un echec : pas de « 0 » qui passerait pour un resultat. */
+  protected readonly loaded = computed(() => !this.loading() && !this.loadError());
 
   private readonly sub = computed(() => this.auth.userInfo()?.sub ?? '');
 
@@ -212,21 +220,32 @@ export class TransactionsPage {
     });
   });
 
+  protected readonly slices = revealInSlices(this.visible, TRANSACTIONS_PAGE_SIZE);
+
   protected readonly resultsLabel = computed(() => {
+    if (!this.loaded()) return '\u00a0';
     const count = this.visible().length;
     return this.i18n.t(count > 1 ? 'transactions_count' : 'transactions_count_one', { count });
   });
 
   constructor() {
+    this.load();
+  }
+
+  protected load(): void {
     const sub = this.sub();
     if (!sub) return;
     this.loading.set(true);
+    this.loadError.set(null);
     this.api.byUser(sub).subscribe({
       next: (transactions) => {
         this.transactions.set(transactions);
         this.loading.set(false);
       },
-      error: () => this.loading.set(false),
+      error: (error) => {
+        this.loadError.set(loadErrorKey(error));
+        this.loading.set(false);
+      },
     });
   }
 }

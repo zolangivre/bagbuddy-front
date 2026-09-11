@@ -5,6 +5,7 @@ import { Role, Transaction } from '../../core/models';
 import { TRANSACTION_STATUS } from '../../core/transaction-status';
 import { Icon } from '../../shared/icon/icon';
 import { IconName } from '../../shared/icon/icons';
+import { T } from '../../shared/ui/t';
 
 type BottomKind = 'none' | 'requested' | 'rejected' | 'payment' | 'settled';
 
@@ -23,13 +24,17 @@ interface StatusView {
  */
 @Component({
   selector: 'bb-status-card',
-  imports: [Icon],
+  imports: [T, Icon],
   template: `
     @if (view(); as v) {
       <section class="card" [style.background]="v.background">
         <bb-icon [name]="v.icon" [size]="60" [style.color]="v.color" />
-        <h2 class="bb-card-status-title" [style.color]="v.color">{{ i18n.t(v.titleKey) }}</h2>
-        <p class="bb-body centered">{{ i18n.t(v.descriptionKey, descriptionParams()) }}</p>
+        <h2 class="bb-card-status-title" [style.color]="v.color">
+          <bb-t [key]="v.titleKey" />
+        </h2>
+        <p class="bb-body centered">
+          <bb-t [key]="v.descriptionKey" [params]="descriptionParams()" />
+        </p>
 
         @switch (v.bottom) {
           @case ('requested') {
@@ -178,13 +183,17 @@ export class StatusCard {
           descriptionKey: 'waiting_for_response_description',
           bottom: 'requested',
         };
+      // Vu du vendeur qui vient de refuser. Le mobile reutilise ici l'encart
+      // de l'acheteur en attente (« Votre demande a ete envoyee a… ») : le
+      // statut est bien une attente, mais celle d'une nouvelle demande de
+      // l'acheteur, et c'est le vendeur qui lit.
       case TRANSACTION_STATUS.WAITING_FOR_RESPONSE_SELLER:
         return {
           icon: 'circle-x',
           color: 'var(--bb-error)',
           background: 'var(--bb-red-a05)',
-          titleKey: 'waiting_for_response_title',
-          descriptionKey: 'waiting_for_response_description',
+          titleKey: 'request_declined_title',
+          descriptionKey: 'request_declined_description',
           bottom: 'rejected',
         };
       case TRANSACTION_STATUS.REQUEST_REJECTED:

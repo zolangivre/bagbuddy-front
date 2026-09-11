@@ -1,4 +1,14 @@
-import { Component, computed, inject, input, model, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  input,
+  model,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Icon } from '../icon/icon';
 
@@ -20,29 +30,39 @@ let nextFieldId = 0;
       }
       @if (multiline()) {
         <textarea
+          #control
           [id]="id"
           [value]="value()"
           [placeholder]="placeholder()"
           [rows]="rows()"
+          [disabled]="disabled()"
+          [attr.maxlength]="maxLength() ?? null"
           [attr.autocomplete]="autocomplete() || null"
           [attr.aria-describedby]="describedBy()"
           [attr.aria-invalid]="!!error()"
+          [attr.aria-required]="required() || null"
           (input)="onInput($event)"
+          (blur)="onBlur()"
         ></textarea>
       } @else {
         <span class="control">
           <input
+            #control
             [id]="id"
             [type]="effectiveType()"
             [value]="value()"
             [placeholder]="placeholder()"
+            [disabled]="disabled()"
             [attr.min]="minValue()"
             [attr.max]="maxValue()"
             [attr.step]="stepValue()"
+            [attr.maxlength]="maxLength() ?? null"
             [attr.autocomplete]="autocomplete() || null"
             [attr.aria-describedby]="describedBy()"
             [attr.aria-invalid]="!!error()"
+            [attr.aria-required]="required() || null"
             (input)="onInput($event)"
+            (blur)="onBlur()"
           />
           @if (revealable()) {
             <!--
@@ -57,6 +77,7 @@ let nextFieldId = 0;
               [attr.aria-label]="revealed() ? i18n.t('hide_password') : i18n.t('show_password')"
               [attr.aria-describedby]="label() ? id + '-label' : null"
               [attr.aria-pressed]="revealed()"
+              [disabled]="disabled()"
               (click)="revealed.set(!revealed())"
             >
               <bb-icon [name]="revealed() ? 'eye-off' : 'eye'" [size]="20" />
@@ -116,6 +137,14 @@ let nextFieldId = 0;
       border-color: var(--bb-error);
     }
 
+    /* Pendant un envoi : la saisie reste lisible, mais on voit qu'elle est figee. */
+    input:disabled,
+    textarea:disabled,
+    .reveal:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     /* Champ mot de passe : la bascule occupe la droite du champ. */
     .control:has(.reveal) input {
       padding-right: 48px;
@@ -168,6 +197,24 @@ export class TextField {
   readonly error = input<string | null>(null);
   readonly value = model<string | number>('');
 
+  // Etat pose par la directive [formField] de Signal Forms quand le champ en
+  // porte un : desactivation (pendant un envoi), obligation, longueur maximale.
+  readonly disabled = input(false);
+  readonly required = input(false);
+  readonly maxLength = input<number | undefined>(undefined);
+  /**
+   * Emis au blur d'un champ rempli : Signal Forms le marque alors « touche », et
+   * une saisie invalide (format, longueur, confirmation) se signale en quittant
+   * le champ plutot qu'au seul envoi. Un champ laisse vide ne l'est pas : on ne
+   * reproche pas « obligatoire » a qui ne fait que traverser le formulaire, et
+   * le message qui apparaitrait sous le dernier champ au moment de cliquer sur
+   * « Envoyer » decalerait le bouton sous le pointeur. L'envoi marque tout.
+   */
+  readonly touch = output<void>();
+
+  private readonly control =
+    viewChild<ElementRef<HTMLInputElement | HTMLTextAreaElement>>('control');
+
   protected readonly id = `bb-field-${nextFieldId++}`;
   protected readonly revealed = signal(false);
 
@@ -179,6 +226,15 @@ export class TextField {
   protected readonly effectiveType = computed(() =>
     this.revealable() && this.revealed() ? 'text' : this.type(),
   );
+
+  /** Appele par `focusBoundControl()` : le focus va au champ, pas a l'hote. */
+  focus(options?: FocusOptions): void {
+    this.control()?.nativeElement.focus(options);
+  }
+
+  protected onBlur(): void {
+    if (String(this.value() ?? '') !== '') this.touch.emit();
+  }
 
   protected onInput(event: Event): void {
     this.value.set((event.target as HTMLInputElement | HTMLTextAreaElement).value);

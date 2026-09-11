@@ -69,6 +69,9 @@ import { Avatar } from '../../shared/ui/avatar';
         </div>
 
         <div class="total">
+          <!-- Pas de reservation de largeur ici : le libelle precede le nombre,
+               reserver la place du francais creuserait un blanc visible entre
+               les deux. La boite est calee a gauche, elle ne deplace rien. -->
           <span class="bb-body-3">{{ i18n.t('total_for') }} {{ item().remainingWeight }} kg</span>
           <strong class="bb-number">{{ currency.format(total()) }}</strong>
         </div>
