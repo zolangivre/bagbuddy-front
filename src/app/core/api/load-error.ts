@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { TranslationKey } from '../i18n/i18n.service';
 import { GraphQlError } from './graphql.client';
 
 /** Les trois messages qu'un ecran peut afficher quand une lecture echoue. */
@@ -25,4 +26,18 @@ export function loadErrorKey(error: unknown): LoadErrorKey {
     return 'load_error_unavailable';
   }
   return 'load_error';
+}
+
+/**
+ * Meme lecture, mais avec le message de l'ecran a la place du generique : un
+ * reseau coupe ou un service en panne restent dits precisement, le reste porte
+ * le libelle de l'action qui a echoue (« l'alerte n'a pas ete creee »). Sans
+ * cela chaque appelant recopiait le meme `=== 'load_error' ? ... : key`.
+ */
+export function loadErrorKeyOr<K extends TranslationKey>(
+  error: unknown,
+  fallback: K,
+): Exclude<LoadErrorKey, 'load_error'> | K {
+  const key = loadErrorKey(error);
+  return key === 'load_error' ? fallback : key;
 }

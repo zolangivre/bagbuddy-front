@@ -21,6 +21,25 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/sign-up.page').then((m) => m.SignUpPage),
   },
   {
+    path: 'forgot-password',
+    data: { accessScreen: true },
+    loadComponent: () =>
+      import('./features/auth/forgot-password.page').then((m) => m.ForgotPasswordPage),
+  },
+  {
+    // Ouvert depuis le lien de l'email : le jeton est dans le fragment (#...).
+    path: 'reset-password',
+    data: { accessScreen: true },
+    loadComponent: () =>
+      import('./features/auth/reset-password.page').then((m) => m.ResetPasswordPage),
+  },
+  {
+    // Lien de verification : connecte ou non, le jeton est dans le fragment.
+    path: 'verify-email',
+    data: { accessScreen: true },
+    loadComponent: () => import('./features/auth/verify-email.page').then((m) => m.VerifyEmailPage),
+  },
+  {
     path: 'home',
     canActivate: [authGuard],
     loadComponent: () => import('./features/home/home.page').then((m) => m.HomePage),
@@ -72,6 +91,16 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/listings/edit-listing.page').then((m) => m.EditListingPage),
+  },
+  {
+    path: 'favorites',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/favorites/favorites.page').then((m) => m.FavoritesPage),
+  },
+  {
+    path: 'alerts',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/alerts/alerts.page').then((m) => m.AlertsPage),
   },
   {
     path: 'reviews',

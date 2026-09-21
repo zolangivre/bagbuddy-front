@@ -4,6 +4,7 @@ import { TransactionsService } from '../../core/api/transactions.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { CurrencyService } from '../../core/currency.service';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { departsAround } from '../../core/date-window';
 import { ListingFilters, Transaction } from '../../core/models';
 import { TRANSACTION_STATUS } from '../../core/transaction-status';
 import { Filters } from '../../shared/ui/filters';
@@ -203,7 +204,8 @@ export class TransactionsPage {
       this.mode() === 'active' ? !isClosed(t) : isClosed(t),
     );
 
-    const { from, to, minPrice, maxPrice, minWeight, maxWeight, status } = this.filters();
+    const { from, to, minPrice, maxPrice, minWeight, maxWeight, date, flexDays, status } =
+      this.filters();
     return list.filter((item) => {
       const listing = item.listingInfo;
       const role = item.sellerId === this.sub() ? 'seller' : 'buyer';
@@ -215,6 +217,7 @@ export class TransactionsPage {
         (maxPrice === undefined || listing.pricePerKg <= maxPrice) &&
         (minWeight === undefined || item.weight >= minWeight) &&
         (maxWeight === undefined || item.weight <= maxWeight) &&
+        departsAround(listing.departureDate, date, flexDays) &&
         (this.mode() !== 'active' || !status || itemStatus === status)
       );
     });
@@ -233,11 +236,11 @@ export class TransactionsPage {
   }
 
   protected load(): void {
-    const sub = this.sub();
-    if (!sub) return;
+    // Le `sub` ne part plus dans la requete, mais sans session il n'y a rien a lire.
+    if (!this.sub()) return;
     this.loading.set(true);
     this.loadError.set(null);
-    this.api.byUser(sub).subscribe({
+    this.api.mine().subscribe({
       next: (transactions) => {
         this.transactions.set(transactions);
         this.loading.set(false);

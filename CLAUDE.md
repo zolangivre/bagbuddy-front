@@ -99,7 +99,13 @@ Adaptations web à conserver :
   talon), qui repasse en pile sous 900px — c'est le seul endroit où le design
   prend un risque, le reste reste sobre ;
 - les filtres sont un **rail persistant** à partir de 1024px et une modale en
-  dessous ([shared/ui/filters.ts](src/app/shared/ui/filters.ts)) ;
+  dessous ([shared/ui/filters.ts](src/app/shared/ui/filters.ts)). La date de
+  départ est **flexible** (exacte, ± 1, 3 ou 7 jours) : un filtre au jour près
+  rendait souvent une liste vide. La comparaison se fait en jours calendaires lus
+  sur la chaîne ISO ([core/date-window.ts](src/app/core/date-window.ts)), pas en
+  heure locale, pour qu'un vol du soir ne change pas de jour selon le fuseau ;
+  date et flexibilité sont empilées, un `input[type=date]` ne tenant pas à
+  moitié du rail ;
 - les listes de transactions sont **tabulaires** : les colonnes viennent du token
   `--bb-tx-columns`, partagé par l'en-tête et les lignes — modifier l'un sans
   l'autre casse l'alignement ;
@@ -208,12 +214,37 @@ révoque le refresh token et on reste dans l'app.
 
 Ce que Keycloak ne peut pas recevoir d'un navigateur — créer un compte, changer
 un email, poser un mot de passe — passe par `userservice`, qui relaie vers l'API
-d'administration : mutations `register` (seule opération sans jeton),
-`updateIdentity` et `changePassword`. Les erreurs portent un `code` stable
-(`email_already_used`, `invalid_current_password`, `password_rejected`) dans
+d'administration : mutations `register`, `requestPasswordReset` et
+`resetPassword` (les trois opérations sans jeton), `updateIdentity` et
+`changePassword`. Les erreurs portent un `code` stable
+(`email_already_used`, `invalid_current_password`, `password_rejected`,
+`invalid_reset_token`) dans
 `errors[0].extensions.code`, exposé par `GraphQlError.code` : **matcher sur le
 code, jamais sur le libellé**. Après un changement d'identité il faut appeler
 `refreshTokens()`, sinon les claims du jeton (nom, email) restent ceux d'avant.
+
+**Mot de passe oublié** : Keycloak sait envoyer l'email, mais son lien ouvre sa
+propre page. C'est donc `userservice` qui émet un jeton à usage unique (30 min)
+et l'envoie ; en dev l'email arrive dans Mailpit (http://localhost:8025).
+[`/forgot-password`](src/app/features/auth/forgot-password.page.ts) affiche
+toujours « si un compte utilise cet email » : la mutation répond `true` dans
+tous les cas pour ne pas dire qui est inscrit, l'écran ne doit pas chercher à
+distinguer. [`/reset-password#<jeton>`](src/app/features/auth/reset-password.page.ts)
+lit le jeton dans le **fragment** (jamais envoyé à un serveur), l'efface de la
+barre d'adresse, et bascule sur « lien plus valable » dès un
+`invalid_reset_token`. Les deux routes portent `data: { accessScreen: true }`,
+qui masque la barre de navigation d'un membre connecté ([app.ts](src/app/app.ts)).
+
+**Vérification de l'email** : même mécanique, lien valable 24 h.
+`sendVerificationEmail` (connecté) part tout seul après l'inscription et après
+un changement d'email, et le bandeau
+[email-verification-notice.ts](src/app/features/account/email-verification-notice.ts)
+de `/account` permet de le relancer (au plus un par minute :
+`verification_email_throttled`). [`/verify-email#<jeton>`](src/app/features/auth/verify-email.page.ts)
+confirme sans bouton, connecté ou non — le jeton étant dans le fragment et la
+confirmation un POST lancé par la page, un antivirus de messagerie qui visite le
+lien ne le consomme pas — puis rafraîchit le jeton si l'on est connecté, sinon
+le claim `email_verified` resterait faux.
 
 L'inscription ([features/auth/sign-up.page.ts](src/app/features/auth/sign-up.page.ts))
 sert de modèle pour un formulaire qui écrit :
@@ -274,8 +305,8 @@ pas provoque une `ValidationError` — les écrans passent encore la transaction
 entière à `update()`, c'est `TransactionsService` qui ne retient que les statuts,
 le poids et les drapeaux d'avis. De même `TripInput` n'accepte ni `userId` ni
 `userInfo` (l'identité vient du jeton, seuls bio / localisation / téléphone
-passent par `profile`), et `createTransaction` n'accepte que `listingId` et
-`weight`.
+passent par `profile`), ni `remainingWeight` (voir la machine à états), et
+`createTransaction` n'accepte que `listingId` et `weight`.
 
 Deux formes d'instantané utilisateur cohabitent dans
 [core/models.ts](src/app/core/models.ts) et ne doivent pas être confondues :
@@ -303,14 +334,21 @@ Trois règles pour ne pas payer GraphQL plus cher que REST :
   ses signaux (`show()`), et met à jour la liste d'avis avec le retour de
   `createReview` / `updateReview`. Relire après coup coûtait un aller-retour et
   un écran de chargement.
-- **Pas de pagination serveur pour l'instant, un rendu par tranches.** L'accueil
-  et les transactions filtrent, trient et totalisent côté client sur la liste
-  complète ; `activeTrips` accepte `limit`/`offset` mais sans filtre ni tri, et
-  `myTransactions` n'a pas de `limit` — couper la requête fausserait les
-  filtres. La lecture reste entière et le DOM est monté 20 (30) cartes à la fois
-  par [shared/ui/reveal-more.ts](src/app/shared/ui/reveal-more.ts), la tranche
-  repartant à zéro quand la liste filtrée change (`linkedSignal`). Le jour où le
-  schéma prend filtres et tri, c'est là qu'on passera à `limit`/`offset`.
+- **L'accueil pagine côté serveur, les transactions non.** L'accueil passe par
+  `trips.search()` (`searchTrips`) : filtres, tri, pagination et agrégats sont
+  calculés par tripservice, qui reprend la sémantique des filtres du front
+  (dates flexibles comprises). Un seul document demande les chiffres du bandeau
+  (alias `overview`, sans filtre, lu une fois) et la première page filtrée
+  (alias `results`) ; les pages suivantes (20 annonces) arrivent quand
+  [shared/ui/reveal-more.ts](src/app/shared/ui/reveal-more.ts) approche du bas,
+  et un changement de filtre repart de zéro (`switchMap` + compteur de
+  génération qui écarte une page arrivée en retard). Le prix moyen revient en
+  devise de base : `CurrencyService` le convertit à l'affichage.
+  `/transactions`, lui, filtre et totalise encore côté client sur la liste
+  complète (`myTransactions` n'a ni filtre ni `limit`) et n'étale que le rendu
+  (`revealInSlices`). `trips`, `inactiveTrips` et `reviews` restent plafonnées à
+  200 éléments par page : toute nouvelle lecture de ces queries doit enchaîner
+  les pages.
 
 **Une lecture en échec ne ressemble pas à une liste vide.** Chaque écran garde
 un signal `loadError` alimenté par `loadErrorKey(error)`
@@ -336,18 +374,78 @@ machine, et vérifie quel côté a le droit de la franchir — un acheteur ne pe
 pas accepter sa propre réservation ni se déclarer payé. Les deux colonnes
 bougent ensemble à chaque étape, c'est bien ce que le front envoie.
 
-Corollaire : trois choses ne sont plus à faire côté front, elles seraient sans
+Corollaire : quatre choses ne sont plus à faire côté front, elles seraient sans
 effet ou refusées.
 
 | Ce qu'on ne fait plus | Qui s'en charge |
 | --- | --- |
 | décrémenter `remainingWeight` après une acceptation | le back, sous verrou, quand le vendeur accepte |
+| envoyer `remainingWeight` en créant ou modifiant une annonce (`ValidationError`) | le back : le total à la création, puis la variation du total, bornée entre 0 et le nouveau total |
 | calculer `total` (et envoyer `sellerId` / `buyerId`) | le back, à partir de l'annonce réelle et du token |
 | poser `paidAt` à la confirmation de paiement | le webhook Stripe signé, côté back |
+
+La **pastille de l'onglet Transactions**
+([core/pending-actions.service.ts](src/app/core/pending-actions.service.ts))
+compte les transactions où c'est à l'utilisateur de jouer : vendeur en
+`reservation_received`, acheteur en `payment_required` — rien d'autre, pour
+qu'elle ne reste pas allumée des semaines sur une remise de colis. Pas de push :
+`mineStatuses()` (statuts seuls) est relu à la connexion, au changement de page
+(au plus toutes les 15 s), au retour sur l'onglet du navigateur, et après chaque
+mutation du détail de transaction (`refresh({ force: true })`). Un nouveau
+statut « à traiter » se déclare dans `awaitsMe()`.
 
 En dev local `stripe-service` est éteint, donc `PAYMENTS_REQUIRE_STRIPE=false`
 côté back : la confirmation de paiement reste simulée. Pour brancher le vrai
 paiement, `core/api/stripe.service.ts` expose déjà `createPaymentIntent()`.
+
+### Confiance, communauté et paiement
+
+Ce qui entoure une transaction, et où chaque morceau vit :
+
+- **Déclaration du contenu** ([content-declaration.ts](src/app/features/transaction-detail/content-declaration.ts)) :
+  description et engagement sur les objets interdits, **exigés par
+  `createTransaction`** (`content_description_required`,
+  `prohibited_items_not_accepted`). Vérifiés avant la boîte « confirmer »,
+  focus sur le premier manque. Relus par les deux parties
+  ([declared-content.ts](src/app/features/transaction-detail/declared-content.ts)).
+- **Code de remise** ([handover-card.ts](src/app/features/transaction-detail/handover-card.ts)) :
+  généré au paiement, `handoverCode` n'est rendu **qu'à l'acheteur** (nul pour
+  le voyageur). Le voyageur clôt par `confirmHandover(id, code)` ; il ne peut plus
+  passer `confirmed→completed` par `updateTransaction`. 5 codes faux →
+  `handover_locked`, et c'est à l'acheteur de clore. Le code est lu chiffre par
+  chiffre (`aria-label`).
+- **Messagerie** ([transaction-chat.ts](src/app/features/transaction-detail/transaction-chat.ts)) :
+  relue toutes les 10 s quand l'onglet est visible, avec `afterId`. `role="log"`
+  est posé sur l'enveloppe et **pas sur `<ol>`**, qui perdrait sa sémantique de
+  liste (axe). Lecture seule sur une transaction annulée.
+- **Paiement** ([payment-dialog.ts](src/app/features/transaction-detail/payment-dialog.ts)) :
+  Payment Element de Stripe, Stripe.js chargé à la demande depuis js.stripe.com
+  ([core/stripe-js.ts](src/app/core/stripe-js.ts)). Payé n'est pas confirmé :
+  l'écran relit la transaction jusqu'à `paidAt` (webhook) avant de demander
+  `confirmed`. Si `stripeConfig` ne répond pas (dev sans clés), repli sur la
+  confirmation simulée — qui n'aboutit que si le back tourne avec
+  `PAYMENTS_REQUIRE_STRIPE=false`.
+- **Règlement** ([settlement-card.ts](src/app/features/transaction-detail/settlement-card.ts)) :
+  versement du voyageur ou remboursement de l'acheteur, en unités mineures
+  (÷ 100 puis `CurrencyService`). Le règlement part **après** le commit : la
+  réponse qui termine ou annule montre `PENDING`, et la page relit la transaction
+  toutes les 3 s (10 fois au plus) pour afficher l'état final. `PENDING` au-delà
+  n'est pas une erreur, `SettlementJob` relance côté back. `AWAITING_ACCOUNT` renvoie vers
+  `/account#payouts` ([payout-settings.ts](src/app/features/account/payout-settings.ts),
+  onboarding Stripe Connect par redirection, retour `?payouts=done|retry`).
+- **Favoris** ([core/favorites.service.ts](src/app/core/favorites.service.ts)) :
+  identifiants chez userservice, annonces relues par `tripsByIds` sur
+  `/favorites`. Cœur optimiste, bouton à bascule (`aria-pressed`) à libellé fixe.
+- **Signalement** ([shared/ui/report-member-dialog.ts](src/app/shared/ui/report-member-dialog.ts)) :
+  depuis un profil public ou une transaction, motif obligatoire, email à la
+  modération côté back.
+- **Alertes de trajet** : bouton « M'alerter » sur l'accueil dès qu'un trajet est
+  filtré ([features/home/alert-cta.ts](src/app/features/home/alert-cta.ts)),
+  reprenant les autres filtres ; liste et suppression sur `/alerts`.
+- **Partage** ([shared/ui/share-button.ts](src/app/shared/ui/share-button.ts)) :
+  feuille native ou lien copié, sur l'annonce seulement (jamais la transaction).
+  Le lien exige une connexion : pas d'aperçu riche tant qu'il n'existe pas de
+  page publique rendue côté serveur.
 
 ### Profil utilisateur
 

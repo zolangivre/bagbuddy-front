@@ -7,6 +7,7 @@ import { ReviewsService } from '../../core/api/reviews.service';
 import { TransactionsService } from '../../core/api/transactions.service';
 import { TripsService } from '../../core/api/trips.service';
 import { UsersService } from '../../core/api/users.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { initialsOf } from '../../core/format';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { PublicUserProfile, Review, UserInfoView } from '../../core/models';
@@ -15,6 +16,7 @@ import { IconButton } from '../../shared/ui/icon-button';
 import { LoadError } from '../../shared/ui/load-error';
 import { Loader } from '../../shared/ui/loader';
 import { ReviewCard } from '../../shared/ui/review-card';
+import { ReportMemberDialog } from '../../shared/ui/report-member-dialog';
 import { T } from '../../shared/ui/t';
 
 /**
@@ -25,7 +27,7 @@ import { T } from '../../shared/ui/t';
  */
 @Component({
   selector: 'bb-profile-view-page',
-  imports: [T, IconButton, ReviewCard, Loader, LoadError, Icon],
+  imports: [T, IconButton, ReviewCard, Loader, LoadError, Icon, ReportMemberDialog],
   template: `
     <header class="bb-header-gradient">
       <div class="inner">
@@ -65,6 +67,10 @@ import { T } from '../../shared/ui/t';
             <span class="bb-body-3"><bb-t key="transactions" /></span>
           </div>
         </section>
+
+        @if (canReport()) {
+          <bb-report-member-dialog [memberSub]="sub()" [memberName]="user()?.name ?? ''" />
+        }
 
         @if (user()?.bio) {
           <section class="bb-card bio">
@@ -181,6 +187,7 @@ export class ProfileViewPage {
   private readonly transactions = inject(TransactionsService);
   private readonly trips = inject(TripsService);
   private readonly users = inject(UsersService);
+  private readonly auth = inject(AuthService);
 
   protected readonly sub = signal('');
   protected readonly user = signal<PublicUserProfile | UserInfoView | null>(null);
@@ -191,6 +198,10 @@ export class ProfileViewPage {
   protected readonly loadError = signal<LoadErrorKey | null>(null);
 
   protected readonly initials = computed(() => initialsOf(this.user()?.name, 'NN'));
+  /** Pas de signalement de soi-meme : le back le refuse, autant ne pas le proposer. */
+  protected readonly canReport = computed(
+    () => !!this.sub() && this.sub() !== this.auth.userInfo()?.sub,
+  );
 
   constructor() {
     const sub = this.route.snapshot.paramMap.get('sub') ?? '';

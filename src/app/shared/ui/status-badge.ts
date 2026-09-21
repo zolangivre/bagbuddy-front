@@ -22,7 +22,9 @@ const STYLES: Record<string, BadgeStyle> = {
   [TRANSACTION_STATUS.BROWSE_LISTING]: {
     labelKey: 'browse_listings',
     icon: 'plane',
-    color: 'var(--bb-secondary)',
+    // --bb-title et non --bb-secondary : ce dernier n'est pas redefini en sombre, et le texte
+    // y restait gris fonce sur fond fonce (contraste 1,1:1).
+    color: 'var(--bb-title)',
     background: 'var(--bb-dark-grey-a10)',
     border: 'var(--bb-dark-grey-a20)',
   },

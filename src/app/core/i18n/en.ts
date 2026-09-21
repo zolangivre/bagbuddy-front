@@ -117,6 +117,8 @@ export const en = {
   flight_date_placeholder_arrival: 'Select flight date arrival',
   weight_and_pricing: 'Weight & pricing',
   available_kilos: 'Available kilos',
+  total_capacity_kilos: 'Total capacity (kg)',
+  listing_capacity_hint: '{{reserved}} kg already reserved · {{remaining}} kg still available',
   price_per_kilo: 'Price per kilo',
   total_value: 'Total value',
   fee: 'Fee',
@@ -254,6 +256,8 @@ export const en = {
   error_arrival_date_required: 'Arrival date is required.',
   error_arrival_before_departure: 'Arrival date cannot be earlier than departure date.',
   error_weight_required: 'Available weight is required.',
+  error_capacity_below_reserved:
+    '{{weight}} kg are already reserved: capacity cannot go below that.',
   error_price_required: 'Price per kilo is required.',
   listing_updated_successfully: 'Listing updated successfully.',
   listing_created_successfully: 'Listing created successfully.',
@@ -425,6 +429,8 @@ export const en = {
   confirm_new_password: 'Confirm new password',
   update_password: 'Update password',
   email_change_note: 'Changing your email makes it unverified until you confirm it.',
+  email_change_password_hint:
+    'Your email is also how you sign in: confirm this change with your current password.',
   what_others_see: 'What other members see',
   identity_updated: 'Your details have been updated.',
   profile_updated: 'Your profile has been updated.',
@@ -451,4 +457,199 @@ export const en = {
   account_created_title: 'Your account is ready',
   account_created_sign_in:
     "We couldn't sign you in automatically. Sign in with your new password to continue.",
+
+  // Mot de passe oublie : lien envoye par userservice, jamais par Keycloak
+  forgot_password: 'Forgot your password?',
+  forgot_password_title: 'Reset your password',
+  forgot_password_lede:
+    "Enter your account's email: we'll send you a link to choose a new password.",
+  send_reset_link: 'Send the link',
+  sending_reset_link: 'Sending...',
+  reset_link_sent_title: 'Check your inbox',
+  reset_link_sent_message:
+    'If an account uses {{email}}, a link valid for 30 minutes has just been sent there. Check your spam folder too.',
+  use_another_email: 'Use another email',
+  back_to_sign_in: 'Back to sign in',
+  error_reset_request_failed: "The link couldn't be sent. Try again in a moment.",
+  reset_password_title: 'Choose a new password',
+  reset_password_lede: "You'll be signed out on every device, then you can sign in with it.",
+  set_new_password: 'Save the password',
+  reset_link_invalid_title: 'This link no longer works',
+  reset_link_invalid_message:
+    'It has expired, was already used, or a newer link replaced it. Ask for a new one.',
+  request_new_link: 'Ask for a new link',
+  error_reset_failed: "Your password couldn't be changed. Try again in a moment.",
+  password_reset_done: 'Your password has been changed. Sign in with the new one.',
+
+  // Verification de l'email : lien envoye par userservice
+  email_not_verified_title: 'Your email is not verified yet',
+  email_not_verified_message:
+    'Confirm {{email}} to show the "Verified" badge other members look for.',
+  send_verification_link: 'Send the link',
+  verification_link_sent: 'Link sent to {{email}}. It is valid for 24 hours.',
+  error_verification_throttled: 'A link was sent less than a minute ago. Check your inbox first.',
+  error_verification_send_failed: "The link couldn't be sent. Try again in a moment.",
+  identity_updated_verification_sent:
+    'Your details have been updated. A verification link has been sent to {{email}}.',
+  verify_email_title: 'Email verification',
+  verify_email_lede: 'A verified address shows as such on your profile.',
+  verifying_email: 'Confirming your address...',
+  email_verified_title: 'Your email is verified',
+  email_verified_message: 'The "Verified" badge now shows on your profile.',
+  verification_link_invalid_title: 'This link no longer works',
+  verification_link_invalid_message:
+    'It has expired, was already used, or a newer link replaced it. You can ask for a new one from your account.',
+  error_verification_failed: "Your address couldn't be confirmed. Try again in a moment.",
+  go_to_my_account: 'Go to my account',
+
+  // Pastille de navigation : transactions qui attendent une action
+  pending_actions_one: '1 transaction needs your action',
+  pending_actions_other: '{{count}} transactions need your action',
+
+  // Filtre de date flexible
+  departure_date_filter: 'Departure date',
+  date: 'Date',
+  date_flexibility: 'Flexibility',
+  date_exact: 'Exact date',
+  date_flex_one: '± 1 day',
+  date_flex_days: '± {{days}} days',
+  continue: 'Continue',
+
+  // Favoris et signalements
+  favorite: 'Favorite',
+  my_favorites: 'My favorites',
+  no_favorites: 'No favorites yet. Tap the heart on a listing to put it aside.',
+  favorites_unavailable: 'No longer available',
+  listing_unavailable: 'This listing can no longer be booked.',
+  error_favorite_failed: "This favorite couldn't be saved. Try again in a moment.",
+  error_too_many_favorites: 'You can keep up to 200 favorites. Remove some first.',
+  report_member: 'Report this member',
+  report_member_title: 'Report {{name}}',
+  report_member_lede:
+    'Our moderation team reads every report. The member is not told who reported them.',
+  report_reason: 'Reason',
+  report_reason_prohibited_items: 'Prohibited items or undeclared content',
+  report_reason_no_show: 'Did not show up for the handover',
+  report_reason_fraud: 'Fraud or scam',
+  report_reason_harassment: 'Abusive behaviour',
+  report_reason_other: 'Something else',
+  report_details: 'Details (optional)',
+  report_details_hint:
+    'What happened, when, and anything that helps us check. 2,000 characters max.',
+  send_report: 'Send the report',
+  report_sent: 'Thank you. The moderation team will look into this report.',
+  error_report_reason_required: 'Choose a reason.',
+  error_report_failed: "The report couldn't be sent. Try again in a moment.",
+  error_too_many_reports: 'You have sent many reports today. Try again tomorrow.',
+
+  // Declaration du contenu, code de remise, messagerie
+  content_declaration_title: 'What you are sending',
+  content_declaration_lede:
+    'The traveller reads this before accepting: they carry your parcel through security and customs.',
+  content_description: 'Parcel contents',
+  content_description_placeholder: 'e.g. Two paperback books and a wool sweater',
+  content_description_hint: 'Be specific. 500 characters max.',
+  error_content_required: 'Describe what the traveller will carry.',
+  prohibited_items_title: 'Not allowed in a parcel',
+  prohibited_flammable: 'Flammable or explosive items, lighters, fireworks',
+  prohibited_weapons: 'Weapons, ammunition and replicas',
+  prohibited_drugs: 'Drugs, and medicine without a prescription',
+  prohibited_valuables: 'Cash, jewellery and undeclared valuables',
+  prohibited_perishables: 'Perishable food, plants and live animals',
+  prohibited_counterfeit: 'Counterfeit goods',
+  prohibited_items_accept:
+    'My parcel contains none of these items, and matches the description above.',
+  error_prohibited_not_accepted: 'Confirm that your parcel contains no prohibited item.',
+  declared_content_title: 'Declared contents',
+  prohibited_items_accepted_note: 'The buyer confirmed the parcel contains no prohibited item.',
+  handover_title: 'Handover code',
+  handover_buyer_lede:
+    'Give this code to the person receiving the parcel. The traveller enters it on delivery to close the transaction.',
+  copy_code: 'Copy',
+  copied: 'Copied',
+  handover_locked_buyer:
+    'Too many wrong codes were entered. Confirm the delivery yourself once the parcel has arrived.',
+  handover_seller_lede:
+    'On delivery, ask the recipient for the handover code and enter it here: it proves the parcel was handed over.',
+  handover_locked_seller:
+    'Too many wrong codes. The buyer now has to confirm the delivery themselves.',
+  handover_code_label: 'Handover code',
+  confirm_handover: 'Confirm handover',
+  error_handover_code_format: 'The code has 6 digits.',
+  error_handover_code_invalid: "This isn't the right code. Check it with the recipient.",
+  error_handover_failed: "The handover couldn't be confirmed. Try again in a moment.",
+  handover_done_title: 'Handover confirmed',
+  handover_done_message: 'The transaction is complete. You can now leave a review.',
+  chat_title: 'Messages',
+  chat_you: 'You:',
+  chat_them: 'Them:',
+  chat_empty: 'No messages yet. Agree on where and when to meet.',
+  chat_closed: 'This transaction was cancelled: the conversation is read-only.',
+  chat_placeholder: 'Write a message',
+  chat_send: 'Send',
+  error_chat_too_fast: 'You are sending messages too fast. Wait a moment.',
+  error_chat_send: "The message couldn't be sent. Try again.",
+
+  // Versements et reglement
+  payouts_title: 'Payouts',
+  payouts_lede:
+    'To receive the money from your trips, Stripe needs your identity and bank details. They never pass through BagBuddy.',
+  payouts_state_none: 'Payouts are not set up yet.',
+  payouts_state_incomplete: 'Your Stripe details are incomplete.',
+  payouts_state_review: 'Stripe is reviewing your details.',
+  payouts_state_active: 'Payouts are active: your earnings are sent to your bank.',
+  payouts_setup: 'Set up my payouts',
+  payouts_continue: 'Finish setting up',
+  payouts_redirecting: 'Opening Stripe...',
+  payouts_unavailable: 'Payouts are unavailable right now. Try again later.',
+  payouts_onboarding_failed: "Stripe couldn't be opened. Try again in a moment.",
+  payouts_returned_done: 'Back from Stripe. Your status is up to date below.',
+  payouts_returned_retry: 'The Stripe link expired. Open it again to carry on.',
+  settlement_payout_title: 'Your payout',
+  settlement_refund_title: 'Your refund',
+  settlement_fee: 'After the {{fee}} BagBuddy fee.',
+  settlement_payout_done: 'Sent to your bank account.',
+  settlement_refund_done: 'Refunded to your payment method.',
+  settlement_simulated: 'Simulated: no real money moves in this environment.',
+  settlement_awaiting_account: 'Waiting for your payout account: set it up to receive this amount.',
+  settlement_failed: 'This transfer failed. Our team is handling it.',
+  settlement_pending: 'On its way.',
+
+  // Alertes de trajet
+  my_alerts: 'My trip alerts',
+  alerts_lede:
+    'You get an email each time a listing matching one of these alerts is published. Create them from the home page, once you have picked a route.',
+  no_alerts:
+    'No alerts yet. Pick a departure and an arrival on the home page, then tap "Alert me".',
+  alert_prompt: 'Get an email when a new {{route}} listing is published.',
+  alert_create: 'Alert me',
+  alert_created: 'Alert created for {{route}}.',
+  manage_alerts: 'Manage my alerts',
+  alert_any_date: 'Any date',
+  alert_date_exact: 'On {{date}}',
+  alert_date_flex: 'Around {{date}} (± {{days}} days)',
+  alert_max_price: '{{price}} / kg max',
+  alert_min_weight: '{{weight}} kg min',
+  delete_alert: 'Delete the {{route}} alert',
+  delete_alert_message: 'You will stop getting emails for this route.',
+  error_alert_failed: "The alert couldn't be created. Try again in a moment.",
+  error_too_many_alerts: 'You can keep up to 10 alerts. Delete one first.',
+  error_alert_needs_email: 'Your account needs an email address to receive alerts.',
+  error_alert_delete_failed: "The alert couldn't be deleted. Try again in a moment.",
+
+  // Paiement Stripe
+  payment_amount: 'Amount to pay',
+  payment_preparing: 'Preparing the secure payment...',
+  payment_pay: 'Pay now',
+  payment_paying: 'Paying...',
+  payment_secure_note: 'Your card details are entered with Stripe and never reach BagBuddy.',
+  payment_waiting_confirmation: 'Payment accepted. Waiting for the confirmation from Stripe...',
+  payment_confirmation_late:
+    'Your payment went through, but its confirmation is taking longer than usual. You will not be charged again.',
+  payment_unavailable: "The payment couldn't be prepared. Try again in a moment.",
+  payment_failed: 'The payment failed.',
+
+  // Partage
+  share: 'Share this listing',
+  link_copied: 'Link copied',
 };

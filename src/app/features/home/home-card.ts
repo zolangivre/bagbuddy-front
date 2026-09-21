@@ -7,6 +7,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { Listing } from '../../core/models';
 import { Icon } from '../../shared/icon/icon';
 import { Avatar } from '../../shared/ui/avatar';
+import { FavoriteToggle } from '../../shared/ui/favorite-toggle';
 
 /**
  * Annonce de l'accueil, portee de components/HomeCard.js.
@@ -19,17 +20,22 @@ import { Avatar } from '../../shared/ui/avatar';
  */
 @Component({
   selector: 'bb-home-card',
-  imports: [RouterLink, Avatar, Icon],
+  imports: [RouterLink, Avatar, Icon, FavoriteToggle],
   template: `
     <article class="pass">
       <div class="trip">
-        <a class="user" [routerLink]="['/profile-view', item().userInfo.sub]">
-          <bb-avatar [initials]="initials()" [size]="40" />
-          <span class="user-text">
-            <span class="bb-section-title">{{ item().userInfo.name }}</span>
-            <span class="bb-body-3">{{ i18n.t('listed_on') }} {{ listedOn() }}</span>
-          </span>
-        </a>
+        <div class="head">
+          <a class="user" [routerLink]="['/profile-view', item().userInfo.sub]">
+            <bb-avatar [initials]="initials()" [size]="40" />
+            <span class="user-text">
+              <span class="bb-section-title">{{ item().userInfo.name }}</span>
+              <span class="bb-body-3">{{ i18n.t('listed_on') }} {{ listedOn() }}</span>
+            </span>
+          </a>
+          @if (!isOwnListing() && item().id; as id) {
+            <bb-favorite-toggle [listingId]="id" />
+          }
+        </div>
 
         <div class="route">
           <div class="end">
@@ -76,7 +82,9 @@ import { Avatar } from '../../shared/ui/avatar';
           <strong class="bb-number">{{ currency.format(total()) }}</strong>
         </div>
 
-        @if (isOwnListing()) {
+        @if (!bookable()) {
+          <p class="unavailable bb-body-2">{{ i18n.t('listing_unavailable') }}</p>
+        } @else if (isOwnListing()) {
           <a class="cta" routerLink="/listings">
             {{ i18n.t('view_your_listings') }}
             <bb-icon name="arrow-right" [size]="20" />
@@ -105,6 +113,18 @@ import { Avatar } from '../../shared/ui/avatar';
       display: flex;
       flex-direction: column;
       gap: 20px;
+    }
+
+    .head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .unavailable {
+      margin: 0;
+      color: var(--bb-text);
     }
 
     .user {
@@ -272,6 +292,11 @@ export class HomeCard {
   private readonly auth = inject(AuthService);
 
   readonly item = input.required<Listing>();
+  /**
+   * Faux pour une annonce qui ne se reserve plus (partie, epuisee) : la page des
+   * favoris les garde, mais sans action qui echouerait cote serveur.
+   */
+  readonly bookable = input(true);
 
   protected readonly initials = computed(() => {
     const user = this.item().userInfo;

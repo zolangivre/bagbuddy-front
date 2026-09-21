@@ -180,9 +180,9 @@ export class TextField {
 
   readonly label = input('');
   readonly placeholder = input('');
-  readonly type = input<'text' | 'number' | 'datetime-local' | 'email' | 'tel' | 'password'>(
-    'text',
-  );
+  readonly type = input<
+    'text' | 'number' | 'date' | 'datetime-local' | 'email' | 'tel' | 'password'
+  >('text');
   readonly multiline = input(false);
   readonly rows = input(4);
   readonly minValue = input<number | null>(null);

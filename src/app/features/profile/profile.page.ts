@@ -101,6 +101,15 @@ import { T } from '../../shared/ui/t';
             layout="inline"
           />
         </div>
+
+        <a class="favorites-link bb-highlight" routerLink="/favorites">
+          <bb-icon name="heart" [size]="18" />
+          {{ i18n.t('my_favorites') }}
+        </a>
+        <a class="favorites-link bb-highlight" routerLink="/alerts">
+          <bb-icon name="bell" [size]="18" />
+          {{ i18n.t('my_alerts') }}
+        </a>
       </aside>
 
       <section class="panel">
@@ -378,6 +387,13 @@ import { T } from '../../shared/ui/t';
       align-items: center;
       justify-content: center;
       flex: none;
+    }
+
+    .favorites-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: var(--bb-fs-body-2);
     }
 
     .settings {

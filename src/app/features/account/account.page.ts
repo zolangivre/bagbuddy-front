@@ -1,5 +1,13 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { email, FieldTree, form, FormField, minLength, required } from '@angular/forms/signals';
+import {
+  email,
+  FieldTree,
+  form,
+  FormField,
+  hidden,
+  minLength,
+  required,
+} from '@angular/forms/signals';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { GraphQlError } from '../../core/api/graphql.client';
@@ -14,11 +22,15 @@ import { Button } from '../../shared/ui/button';
 import { SubHeader } from '../../shared/ui/sub-header';
 import { T } from '../../shared/ui/t';
 import { TextField } from '../../shared/ui/text-field';
+import { EmailVerificationNotice } from './email-verification-notice';
+import { PayoutSettings } from './payout-settings';
 
 interface IdentityForm {
   firstName: string;
   lastName: string;
   email: string;
+  /** Demande seulement quand l'email change (voir `emailChanged`). */
+  currentPassword: string;
 }
 
 interface PasswordForm {
@@ -42,7 +54,18 @@ interface PasswordForm {
  */
 @Component({
   selector: 'bb-account-page',
-  imports: [T, SubHeader, TextField, Button, Avatar, Badge, Icon, FormField],
+  imports: [
+    T,
+    SubHeader,
+    TextField,
+    Button,
+    Avatar,
+    Badge,
+    Icon,
+    FormField,
+    EmailVerificationNotice,
+    PayoutSettings,
+  ],
   template: `
     <bb-sub-header [title]="i18n.t('my_account')" (back)="goBack()" />
 
@@ -53,6 +76,15 @@ interface PasswordForm {
             <bb-icon name="user" [size]="20" />
             {{ i18n.t('personal_information') }}
           </h2>
+
+          @if (user(); as account) {
+            @if (!account.email_verified && account.email) {
+              <bb-email-verification-notice
+                [email]="account.email"
+                (verified)="refreshVerification()"
+              />
+            }
+          }
 
           <form (submit)="saveIdentity($event)">
             @if (identityFailure(); as message) {
@@ -88,6 +120,18 @@ interface PasswordForm {
               [hint]="i18n.t('email_change_note')"
               [error]="errorOf(identity.email)"
             />
+
+            @if (!identity.currentPassword().hidden()) {
+              <bb-text-field
+                [formField]="identity.currentPassword"
+                type="password"
+                autocomplete="current-password"
+                [revealable]="true"
+                [label]="i18n.t('current_password')"
+                [hint]="i18n.t('email_change_password_hint')"
+                [error]="errorOf(identity.currentPassword)"
+              />
+            }
 
             <bb-button type="submit" [disabled]="savingIdentity()">
               <bb-t
@@ -140,6 +184,8 @@ interface PasswordForm {
             </bb-button>
           </form>
         </section>
+
+        <bb-payout-settings />
 
         <section class="bb-card">
           <h2 class="bb-card-title">
@@ -324,13 +370,23 @@ export class AccountPage {
     firstName: this.user()?.given_name ?? '',
     lastName: this.user()?.family_name ?? '',
     email: this.user()?.email ?? '',
+    currentPassword: '',
   });
 
+  /**
+   * L'email est aussi l'identifiant de connexion : le back exige le mot de passe
+   * actuel pour le changer. Masque, le champ ne compte pas dans la validite du
+   * formulaire, donc son `required` ne bloque pas un changement de nom seul.
+   */
   protected readonly identity = form(this.identityModel, (path) => {
     required(path.firstName, { message: this.i18n.t('error_first_name_required') });
     required(path.lastName, { message: this.i18n.t('error_last_name_required') });
     required(path.email, { message: this.i18n.t('error_email_required') });
     email(path.email, { message: this.i18n.t('error_email_invalid') });
+    hidden(path.currentPassword, {
+      when: ({ valueOf }) => !this.emailChanged(valueOf(path.email)),
+    });
+    required(path.currentPassword, { message: () => this.i18n.t('error_password_required') });
   });
 
   /**
@@ -391,6 +447,8 @@ export class AccountPage {
     if (!state.valid() || this.savingIdentity()) return;
 
     const values = this.identityModel();
+    // Lu avant la mise a jour : apres loadUserInfo(), l'email « actuel » est deja le nouveau.
+    const emailChanged = this.emailChanged(values.email);
     this.identityFailure.set(null);
     this.savingIdentity.set(true);
     try {
@@ -399,16 +457,58 @@ export class AccountPage {
           firstName: values.firstName.trim(),
           lastName: values.lastName.trim(),
           email: values.email.trim(),
+          currentPassword: emailChanged ? values.currentPassword : undefined,
         }),
       );
       await this.auth.refreshTokens();
       await this.auth.loadUserInfo();
-      this.confirm.inform(this.i18n.t('success'), this.i18n.t('identity_updated'));
+      const sentTo = emailChanged ? await this.sendVerificationEmail() : null;
+      this.confirm.inform(
+        this.i18n.t('success'),
+        sentTo
+          ? this.i18n.t('identity_updated_verification_sent', { email: sentTo })
+          : this.i18n.t('identity_updated'),
+      );
     } catch (cause) {
+      // Un mauvais mot de passe arrive ici en `invalid_current_password`.
       this.identityFailure.set(this.messageFor(cause));
     } finally {
+      // Vide dans les deux cas. Le reset retire aussi l'etat « touche » : sans
+      // lui, « obligatoire » s'afficherait sous le champ en plus du message.
+      this.identityModel.update((model) => ({ ...model, currentPassword: '' }));
+      this.identity.currentPassword().reset();
       this.savingIdentity.set(false);
     }
+  }
+
+  /**
+   * Une nouvelle adresse repart non verifiee : le lien part tout de suite, sans
+   * attendre un clic sur le bandeau. Un echec n'annule pas le changement
+   * d'identite, qui a reussi ; le bandeau reste la pour renvoyer.
+   */
+  private async sendVerificationEmail(): Promise<string | null> {
+    try {
+      const sent = await firstValueFrom(this.users.sendVerificationEmail(this.i18n.language()));
+      return sent ? (this.user()?.email ?? null) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** L'adresse a ete confirmee ailleurs : le jeton courant le dit encore faux. */
+  protected async refreshVerification(): Promise<void> {
+    try {
+      await this.auth.refreshTokens();
+      await this.auth.loadUserInfo();
+    } catch {
+      // Le bandeau reste affiche ; il disparaitra au prochain chargement.
+    }
+  }
+
+  /** Comparaison sans casse ni espaces autour : `A@b.fr ` n'est pas un nouvel email. */
+  private emailChanged(value: string): boolean {
+    const normalize = (address: string) => address.trim().toLowerCase();
+    return normalize(value) !== normalize(this.user()?.email ?? '');
   }
 
   protected async saveProfile(event: Event): Promise<void> {

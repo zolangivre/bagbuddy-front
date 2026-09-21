@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { FieldTree, FormField, form, min, required } from '@angular/forms/signals';
+import { FieldTree, FormField, form, min, required, validate } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LoadErrorKey, loadErrorKey } from '../../core/api/load-error';
 import { TripsService } from '../../core/api/trips.service';
@@ -23,9 +23,15 @@ interface ListingForm {
   arrival: string;
   departureDate: string;
   arrivalDate: string;
-  availableKilos: number;
+  /** Capacite totale : la capacite restante est decidee par le serveur. */
+  totalKilos: number;
   pricePerKg: number;
   conditions: string;
+}
+
+/** Les poids sont des BigDecimal cote serveur : pas de 4.999999 kg a l'affichage. */
+function roundKg(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 /** Portage de app/edit-listing.js : creation et edition d'une annonce. */
@@ -115,11 +121,12 @@ interface ListingForm {
 
             <div class="row">
               <bb-text-field
-                [formField]="listingForm.availableKilos"
+                [formField]="listingForm.totalKilos"
                 type="number"
-                [label]="i18n.t('available_kilos')"
+                [label]="i18n.t('total_capacity_kilos')"
                 placeholder="0"
-                [error]="errorOf(listingForm.availableKilos)"
+                [hint]="capacityHint()"
+                [error]="errorOf(listingForm.totalKilos)"
               />
               <bb-text-field
                 [formField]="listingForm.pricePerKg"
@@ -156,7 +163,7 @@ interface ListingForm {
             <h2 class="bb-card-title">{{ i18n.t('total_value') }}</h2>
             <strong class="bb-amount total">{{ currency.format(totals().total) }}</strong>
             <p class="bb-body-2 detail">
-              {{ model().availableKilos }} kg × {{ currency.format(model().pricePerKg) }}/kg
+              {{ remaining() }} kg × {{ currency.format(model().pricePerKg) }}/kg
             </p>
             <p class="bb-body-3 detail">
               {{ i18n.t('fee') }} : {{ currency.format(totals().fee) }}
@@ -295,33 +302,69 @@ export class EditListingPage {
   protected readonly loadError = signal<LoadErrorKey | null>(null);
   protected readonly saving = signal(false);
 
-  /** Poids deja vendu, conserve pour recalculer le total comme le mobile. */
-  private readonly totalWeightAvailable = signal(0);
-  private readonly remainingWeight = signal(0);
+  /** Capacites de l'annonce telle qu'enregistree ; null a la creation. */
+  private readonly saved = signal<{ total: number; remaining: number } | null>(null);
 
   protected readonly model = signal<ListingForm>({
     departure: '',
     arrival: '',
     departureDate: '',
     arrivalDate: '',
-    availableKilos: 0,
+    totalKilos: 0,
     pricePerKg: 0,
     conditions: '',
   });
+
+  /** Poids deja accepte par le vendeur, que la capacite totale ne peut plus rendre. */
+  private readonly reserved = computed(() => {
+    const saved = this.saved();
+    return saved ? roundKg(Math.max(saved.total - saved.remaining, 0)) : 0;
+  });
+
+  /**
+   * Capacite restante telle que le serveur la calculera : la variation du total
+   * reportee sur le restant, bornee entre 0 et le nouveau total. Le vendeur ne la
+   * saisit plus — il pourrait sinon se recrediter le poids deja vendu.
+   */
+  protected readonly remaining = computed(() => {
+    const total = Number(this.model().totalKilos) || 0;
+    const saved = this.saved();
+    if (!saved) return total;
+    return roundKg(Math.min(Math.max(saved.remaining + total - saved.total, 0), total));
+  });
+
+  protected readonly capacityHint = computed(() =>
+    this.reserved() > 0
+      ? this.i18n.t('listing_capacity_hint', {
+          reserved: this.reserved(),
+          remaining: this.remaining(),
+        })
+      : null,
+  );
 
   protected readonly listingForm = form(this.model, (path) => {
     required(path.departure, { message: this.i18n.t('error_departure_required') });
     required(path.arrival, { message: this.i18n.t('error_arrival_required') });
     required(path.departureDate, { message: this.i18n.t('error_departure_date_required') });
     required(path.arrivalDate, { message: this.i18n.t('error_arrival_date_required') });
-    min(path.availableKilos, 0.1, { message: this.i18n.t('error_weight_required') });
+    min(path.totalKilos, 0.1, { message: this.i18n.t('error_weight_required') });
+    // Le serveur accepterait un total sous le reserve (le restant tomberait a 0),
+    // mais l'annonce afficherait alors moins de capacite qu'elle n'en a vendu.
+    validate(path.totalKilos, ({ value }) =>
+      Number(value()) < this.reserved()
+        ? {
+            kind: 'below_reserved',
+            message: this.i18n.t('error_capacity_below_reserved', { weight: this.reserved() }),
+          }
+        : null,
+    );
     min(path.pricePerKg, 0.1, { message: this.i18n.t('error_price_required') });
   });
 
-  /** Frais BagBuddy de 5 %, comme calculateTotal() du mobile. */
+  /** Frais BagBuddy de 5 %, comme calculateTotal() du mobile, sur ce qui reste a vendre. */
   protected readonly totals = computed(() => {
-    const { availableKilos, pricePerKg } = this.model();
-    const subtotal = (Number(availableKilos) || 0) * (Number(pricePerKg) || 0);
+    const { pricePerKg } = this.model();
+    const subtotal = this.remaining() * (Number(pricePerKg) || 0);
     const fee = subtotal * 0.05;
     return { subtotal, fee, total: subtotal + fee };
   });
@@ -353,14 +396,16 @@ export class EditListingPage {
     this.loadError.set(null);
     this.trips.byId(id).subscribe({
       next: (listing) => {
-        this.totalWeightAvailable.set(listing.totalWeightAvailable);
-        this.remainingWeight.set(listing.remainingWeight);
+        this.saved.set({
+          total: listing.totalWeightAvailable,
+          remaining: listing.remainingWeight,
+        });
         this.model.set({
           departure: listing.departureAirport,
           arrival: listing.arrivalAirport,
           departureDate: toDateTimeLocalValue(listing.departureDate),
           arrivalDate: toDateTimeLocalValue(listing.arrivalDate),
-          availableKilos: listing.remainingWeight,
+          totalKilos: listing.totalWeightAvailable,
           pricePerKg: listing.pricePerKg,
           conditions: listing.conditions ?? '',
         });
@@ -424,29 +469,23 @@ export class EditListingPage {
       arrivalAirport: values.arrival,
       departureDate: new Date(values.departureDate).toISOString(),
       arrivalDate: new Date(values.arrivalDate).toISOString(),
-      totalWeightAvailable: Number(values.availableKilos),
-      remainingWeight: Number(values.availableKilos),
+      totalWeightAvailable: Number(values.totalKilos),
       pricePerKg: Number(values.pricePerKg),
       conditions: values.conditions,
     };
   }
 
   /**
-   * En edition, le poids deja reserve reste soustrait : on ne remet a plat le
-   * total que si rien n'a encore ete vendu (meme regle que handleUpdateListing).
+   * Seul le total part : le serveur y reporte lui-meme le poids deja reserve
+   * (ce que faisait handleUpdateListing du mobile en envoyant les deux champs).
    */
   private updatePayload(values: ListingForm) {
-    const sold = this.totalWeightAvailable() - this.remainingWeight();
-    const newRemaining = Number(values.availableKilos);
-    const newTotal = sold === 0 ? newRemaining : sold + newRemaining;
-
     return {
       departureAirport: values.departure,
       arrivalAirport: values.arrival,
       departureDate: new Date(values.departureDate).toISOString(),
       arrivalDate: new Date(values.arrivalDate).toISOString(),
-      totalWeightAvailable: newTotal,
-      remainingWeight: newRemaining,
+      totalWeightAvailable: Number(values.totalKilos),
       pricePerKg: Number(values.pricePerKg),
       conditions: values.conditions,
     };

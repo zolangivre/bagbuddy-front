@@ -345,6 +345,9 @@ export class SignUpPage {
         this.afterRender(() => this.notice()?.nativeElement.focus());
         return undefined;
       }
+      // Sans attendre ni bloquer l'arrivee sur l'accueil : si l'envoi echoue, le
+      // bandeau de l'ecran de compte permet de le relancer.
+      this.users.sendVerificationEmail(this.i18n.language()).subscribe({ error: () => undefined });
       await this.router.navigate(['/home']);
       return undefined;
     } finally {

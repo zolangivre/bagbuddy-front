@@ -34,6 +34,11 @@ export interface TokenClaims {
  *
  * `email` et `phone` ne sont renseignes que pour qui a le droit de les voir
  * (proprietaire de l'annonce, participants d'une transaction).
+ *
+ * `username` suit une regle plus stricte : dans une annonce, il revient nul
+ * pour tout autre que son proprietaire, et `trips.service` ne le demande donc
+ * plus. Seules les parties d'une transaction (`PARTY_FIELDS`) le recoivent
+ * encore. Ne pas l'afficher pour designer un autre membre : c'est `name`.
  */
 export interface UserInfoView {
   sub?: string;
@@ -51,7 +56,8 @@ export interface UserInfoView {
 /**
  * Profil applicatif detenu par userservice, indexe sur le `sub` Keycloak.
  * Renvoye par la query `me` : les champs d'identite viennent du token Keycloak,
- * les champs libres (bio, location, phone, stripeAccountId) sont edites ici.
+ * les champs libres (bio, location, phone) sont edites ici ; stripeAccountId est
+ * en lecture seule, enregistre par stripeservice (onboarding Stripe Connect).
  */
 export interface UserProfile {
   sub: string;
@@ -67,10 +73,14 @@ export interface UserProfile {
   stripeAccountId?: string;
 }
 
-/** Ce qu'un autre membre voit : ni email, ni telephone, ni compte Stripe. */
+/**
+ * Ce qu'un autre membre voit : ni email, ni telephone, ni compte Stripe. Ni
+ * `username` : `user(sub:)` le renvoie nul pour tout autre que l'appelant, et
+ * son profil a lui se lit dans `me`.
+ */
 export type PublicUserProfile = Pick<
   UserProfile,
-  'sub' | 'username' | 'name' | 'givenName' | 'emailVerified' | 'bio' | 'location'
+  'sub' | 'name' | 'givenName' | 'emailVerified' | 'bio' | 'location'
 >;
 
 /** Une annonce = un vol avec des kilos disponibles (tripservice). */
@@ -116,6 +126,37 @@ export interface Transaction {
   stripeAmount?: number;
   paidAt?: string;
   createdAt?: string;
+  /** Ce que l'acheteur confie au voyageur, declare a la reservation. */
+  contentDescription?: string | null;
+  prohibitedItemsAccepted?: boolean;
+  /** Code de remise : rendu a l'acheteur seul, a partir du paiement. Nul pour le voyageur. */
+  handoverCode?: string | null;
+  /** Trop de codes faux saisis : seul l'acheteur peut encore clore. */
+  handoverLocked?: boolean;
+  /**
+   * Reglement d'une transaction payee, en unites mineures comme stripeAmount :
+   * refundAmount + platformFee + payoutAmount = stripeAmount.
+   */
+  platformFee?: number | null;
+  refundAmount?: number | null;
+  refundStatus?: SettlementStatus | null;
+  refundedAt?: string | null;
+  payoutAmount?: number | null;
+  payoutStatus?: SettlementStatus | null;
+  paidOutAt?: string | null;
+}
+
+/** AWAITING_ACCOUNT : le voyageur doit configurer ses versements pour etre paye. */
+export type SettlementStatus = 'PENDING' | 'AWAITING_ACCOUNT' | 'DONE' | 'SIMULATED' | 'FAILED';
+
+/** Message du fil d'une transaction. */
+export interface TransactionMessage {
+  id: string;
+  senderSub: string;
+  body: string;
+  createdAt: string;
+  /** Vrai si l'appelant en est l'auteur. */
+  mine: boolean;
 }
 
 export interface Review {
@@ -139,6 +180,10 @@ export interface ListingFilters {
   maxPrice?: number;
   minWeight?: number;
   maxWeight?: number;
+  /** Jour de depart cherche, `YYYY-MM-DD`. */
+  date?: string;
+  /** Tolerance autour de `date`, en jours (voir core/date-window.ts). */
+  flexDays?: number;
   status?: string | null;
   sort?: SortOption | null;
 }

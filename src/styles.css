@@ -479,6 +479,19 @@ main > *:not(router-outlet) {
   width: 100%;
 }
 
+/*
+ * Texte reserve aux lecteurs d'ecran : libelle d'une pastille, nom d'un envoyeur,
+ * annonce polie. Ici plutot que dans chaque composant, qui en recopiait le bloc.
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

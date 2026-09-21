@@ -47,6 +47,11 @@ interface Credentials {
             <bb-icon name="circle-alert" [size]="20" />
             {{ message }}
           </p>
+        } @else if (passwordReset) {
+          <p class="bb-alert bb-alert--success" role="status">
+            <bb-icon name="circle-check" [size]="20" />
+            {{ i18n.t('password_reset_done') }}
+          </p>
         }
 
         <bb-text-field
@@ -67,6 +72,13 @@ interface Credentials {
           [placeholder]="i18n.t('password_placeholder')"
           [error]="errorOf(credentials.password)"
         />
+
+        <a
+          class="forgot"
+          routerLink="/forgot-password"
+          [queryParams]="{ email: model().email.trim() || null }"
+          >{{ i18n.t('forgot_password') }}</a
+        >
 
         <bb-button type="submit" [disabled]="submitting()">
           <bb-t
@@ -91,6 +103,15 @@ interface Credentials {
     form bb-button {
       margin-top: 8px;
     }
+
+    /* Colle au champ mot de passe, a droite : le lien n'a pas de voisin a
+       pousser, sa largeur peut suivre la langue. */
+    .forgot {
+      align-self: flex-end;
+      margin-top: -8px;
+      font-size: var(--bb-fs-body-2);
+      color: var(--bb-primary);
+    }
   `,
 })
 export class SignInPage {
@@ -103,6 +124,8 @@ export class SignInPage {
 
   protected readonly submitting = signal(false);
   protected readonly failure = signal<string | null>(null);
+  /** Arrivee depuis /reset-password : le nouveau mot de passe est en place. */
+  protected readonly passwordReset = this.route.snapshot.queryParamMap.has('reset');
 
   /**
    * L'inscription renvoie ici avec `?email=` quand le compte est cree mais que

@@ -120,6 +120,8 @@ export const fr: Record<keyof typeof en, string> = {
   flight_date_placeholder: 'Sélectionnez la date de vol',
   weight_and_pricing: 'Poids & tarification',
   available_kilos: 'Kilos disponibles',
+  total_capacity_kilos: 'Capacité totale (kg)',
+  listing_capacity_hint: '{{reserved}} kg déjà réservés · {{remaining}} kg encore disponibles',
   price_per_kilo: 'Prix par kilo',
   total_value: 'Valeur totale',
   fee: 'Frais',
@@ -260,6 +262,8 @@ export const fr: Record<keyof typeof en, string> = {
   error_arrival_before_departure:
     "La date d'arrivée ne peut pas être antérieure à la date de départ.",
   error_weight_required: 'Le poids disponible est obligatoire.',
+  error_capacity_below_reserved:
+    '{{weight}} kg sont déjà réservés : la capacité ne peut pas descendre en dessous.',
   error_price_required: 'Le prix par kilo est obligatoire.',
   listing_updated_successfully: 'Annonce mise à jour avec succès.',
   listing_created_successfully: 'Annonce créée avec succès.',
@@ -431,6 +435,8 @@ export const fr: Record<keyof typeof en, string> = {
   confirm_new_password: 'Confirmez le nouveau mot de passe',
   update_password: 'Mettre à jour le mot de passe',
   email_change_note: 'Changer votre email le rend non vérifié tant qu’il n’est pas confirmé.',
+  email_change_password_hint:
+    'Votre email sert aussi à vous connecter : confirmez ce changement avec votre mot de passe actuel.',
   what_others_see: 'Ce que voient les autres membres',
   identity_updated: 'Vos informations ont été mises à jour.',
   profile_updated: 'Votre profil a été mis à jour.',
@@ -459,4 +465,205 @@ export const fr: Record<keyof typeof en, string> = {
   account_created_title: 'Votre compte est créé',
   account_created_sign_in:
     "La connexion automatique n'a pas abouti. Connectez-vous avec votre nouveau mot de passe pour continuer.",
+
+  // Mot de passe oublié : lien envoyé par userservice, jamais par Keycloak
+  forgot_password: 'Mot de passe oublié ?',
+  forgot_password_title: 'Réinitialisez votre mot de passe',
+  forgot_password_lede:
+    'Indiquez l’email de votre compte : nous vous envoyons un lien pour choisir un nouveau mot de passe.',
+  send_reset_link: 'Envoyer le lien',
+  sending_reset_link: 'Envoi...',
+  reset_link_sent_title: 'Consultez votre boîte mail',
+  reset_link_sent_message:
+    'Si un compte utilise {{email}}, un lien valable 30 minutes vient d’y être envoyé. Pensez à regarder dans vos spams.',
+  use_another_email: 'Utiliser un autre email',
+  back_to_sign_in: 'Retour à la connexion',
+  error_reset_request_failed: "Le lien n'a pas pu être envoyé. Réessayez dans un instant.",
+  reset_password_title: 'Choisissez un nouveau mot de passe',
+  reset_password_lede:
+    'Vous serez déconnecté de tous vos appareils, puis vous pourrez vous connecter avec.',
+  set_new_password: 'Enregistrer le mot de passe',
+  reset_link_invalid_title: "Ce lien n'est plus valable",
+  reset_link_invalid_message:
+    "Il a expiré, a déjà servi, ou un lien plus récent l'a remplacé. Demandez-en un nouveau.",
+  request_new_link: 'Demander un nouveau lien',
+  error_reset_failed: "Votre mot de passe n'a pas pu être modifié. Réessayez dans un instant.",
+  password_reset_done: 'Votre mot de passe a été modifié. Connectez-vous avec le nouveau.',
+
+  // Vérification de l'email : lien envoyé par userservice
+  email_not_verified_title: 'Votre email n’est pas encore vérifié',
+  email_not_verified_message:
+    'Confirmez {{email}} pour afficher le badge « Vérifié » que regardent les autres membres.',
+  send_verification_link: 'Envoyer le lien',
+  verification_link_sent: 'Lien envoyé à {{email}}. Il est valable 24 heures.',
+  error_verification_throttled:
+    'Un lien est parti il y a moins d’une minute. Regardez d’abord votre boîte mail.',
+  error_verification_send_failed: "Le lien n'a pas pu être envoyé. Réessayez dans un instant.",
+  identity_updated_verification_sent:
+    'Vos informations ont été mises à jour. Un lien de vérification a été envoyé à {{email}}.',
+  verify_email_title: 'Vérification de l’email',
+  verify_email_lede: 'Une adresse vérifiée apparaît comme telle sur votre profil.',
+  verifying_email: 'Confirmation de votre adresse...',
+  email_verified_title: 'Votre email est vérifié',
+  email_verified_message: 'Le badge « Vérifié » apparaît désormais sur votre profil.',
+  verification_link_invalid_title: "Ce lien n'est plus valable",
+  verification_link_invalid_message:
+    "Il a expiré, a déjà servi, ou un lien plus récent l'a remplacé. Vous pouvez en demander un nouveau depuis votre compte.",
+  error_verification_failed: "Votre adresse n'a pas pu être confirmée. Réessayez dans un instant.",
+  go_to_my_account: 'Aller à mon compte',
+
+  // Pastille de navigation : transactions qui attendent une action
+  pending_actions_one: '1 transaction attend votre action',
+  pending_actions_other: '{{count}} transactions attendent votre action',
+
+  // Filtre de date flexible
+  departure_date_filter: 'Date de départ',
+  date: 'Date',
+  date_flexibility: 'Flexibilité',
+  date_exact: 'Date exacte',
+  date_flex_one: '± 1 jour',
+  date_flex_days: '± {{days}} jours',
+  continue: 'Continuer',
+
+  // Favoris et signalements
+  favorite: 'Favori',
+  my_favorites: 'Mes favoris',
+  no_favorites:
+    "Aucun favori pour l'instant. Touchez le cœur d'une annonce pour la mettre de côté.",
+  favorites_unavailable: 'Plus disponibles',
+  listing_unavailable: 'Cette annonce ne peut plus être réservée.',
+  error_favorite_failed: "Ce favori n'a pas pu être enregistré. Réessayez dans un instant.",
+  error_too_many_favorites: "Vous pouvez garder jusqu'à 200 favoris. Retirez-en d'abord.",
+  report_member: 'Signaler ce membre',
+  report_member_title: 'Signaler {{name}}',
+  report_member_lede:
+    "L'équipe de modération lit chaque signalement. Le membre ne sait pas qui l'a signalé.",
+  report_reason: 'Motif',
+  report_reason_prohibited_items: 'Objets interdits ou contenu non déclaré',
+  report_reason_no_show: 'Absent au rendez-vous de remise',
+  report_reason_fraud: 'Fraude ou arnaque',
+  report_reason_harassment: 'Comportement abusif',
+  report_reason_other: 'Autre chose',
+  report_details: 'Détails (facultatif)',
+  report_details_hint:
+    "Ce qui s'est passé, quand, et tout ce qui nous aide à vérifier. 2 000 caractères maximum.",
+  send_report: 'Envoyer le signalement',
+  report_sent: "Merci. L'équipe de modération va examiner ce signalement.",
+  error_report_reason_required: 'Choisissez un motif.',
+  error_report_failed: "Le signalement n'a pas pu être envoyé. Réessayez dans un instant.",
+  error_too_many_reports:
+    "Vous avez envoyé beaucoup de signalements aujourd'hui. Réessayez demain.",
+
+  // Déclaration du contenu, code de remise, messagerie
+  content_declaration_title: 'Ce que vous envoyez',
+  content_declaration_lede:
+    'Le voyageur le lit avant d’accepter : il passe la sécurité et la douane avec votre colis.',
+  content_description: 'Contenu du colis',
+  content_description_placeholder: 'ex. Deux livres de poche et un pull en laine',
+  content_description_hint: 'Soyez précis. 500 caractères maximum.',
+  error_content_required: 'Décrivez ce que le voyageur va transporter.',
+  prohibited_items_title: 'Interdit dans un colis',
+  prohibited_flammable: 'Produits inflammables ou explosifs, briquets, feux d’artifice',
+  prohibited_weapons: 'Armes, munitions et répliques',
+  prohibited_drugs: 'Drogues, et médicaments sans ordonnance',
+  prohibited_valuables: 'Espèces, bijoux et objets de valeur non déclarés',
+  prohibited_perishables: 'Denrées périssables, plantes et animaux vivants',
+  prohibited_counterfeit: 'Contrefaçons',
+  prohibited_items_accept:
+    'Mon colis ne contient aucun de ces objets et correspond à la description ci-dessus.',
+  error_prohibited_not_accepted: 'Confirmez que votre colis ne contient aucun objet interdit.',
+  declared_content_title: 'Contenu déclaré',
+  prohibited_items_accepted_note:
+    'L’acheteur a confirmé que le colis ne contient aucun objet interdit.',
+  handover_title: 'Code de remise',
+  handover_buyer_lede:
+    'Donnez ce code à la personne qui reçoit le colis. Le voyageur le saisira à la livraison pour clore la transaction.',
+  copy_code: 'Copier',
+  copied: 'Copié',
+  handover_locked_buyer:
+    'Trop de codes faux ont été saisis. Confirmez vous-même la livraison une fois le colis arrivé.',
+  handover_seller_lede:
+    'À la livraison, demandez le code de remise au destinataire et saisissez-le ici : il prouve que le colis a été remis.',
+  handover_locked_seller:
+    'Trop de codes faux. C’est maintenant à l’acheteur de confirmer la livraison.',
+  handover_code_label: 'Code de remise',
+  confirm_handover: 'Valider la remise',
+  error_handover_code_format: 'Le code comporte 6 chiffres.',
+  error_handover_code_invalid: 'Ce n’est pas le bon code. Vérifiez-le avec le destinataire.',
+  error_handover_failed: "La remise n'a pas pu être validée. Réessayez dans un instant.",
+  handover_done_title: 'Remise validée',
+  handover_done_message: 'La transaction est terminée. Vous pouvez maintenant laisser un avis.',
+  chat_title: 'Messages',
+  chat_you: 'Vous :',
+  chat_them: 'L’autre membre :',
+  chat_empty: 'Aucun message pour l’instant. Convenez du lieu et de l’heure de la remise.',
+  chat_closed: 'Cette transaction a été annulée : la conversation est en lecture seule.',
+  chat_placeholder: 'Écrire un message',
+  chat_send: 'Envoyer',
+  error_chat_too_fast: 'Vous envoyez des messages trop vite. Patientez un instant.',
+  error_chat_send: "Le message n'a pas pu être envoyé. Réessayez.",
+
+  // Versements et règlement
+  payouts_title: 'Versements',
+  payouts_lede:
+    'Pour recevoir l’argent de vos trajets, Stripe a besoin de votre identité et de votre RIB. Ces données ne passent jamais par BagBuddy.',
+  payouts_state_none: 'Les versements ne sont pas encore configurés.',
+  payouts_state_incomplete: 'Vos informations Stripe sont incomplètes.',
+  payouts_state_review: 'Stripe vérifie vos informations.',
+  payouts_state_active: 'Les versements sont actifs : vos gains partent vers votre banque.',
+  payouts_setup: 'Configurer mes versements',
+  payouts_continue: 'Terminer la configuration',
+  payouts_redirecting: 'Ouverture de Stripe...',
+  payouts_unavailable: 'Les versements sont indisponibles pour le moment. Réessayez plus tard.',
+  payouts_onboarding_failed: "Stripe n'a pas pu être ouvert. Réessayez dans un instant.",
+  payouts_returned_done: 'De retour de Stripe. Votre statut est à jour ci-dessous.',
+  payouts_returned_retry: 'Le lien Stripe a expiré. Rouvrez-le pour continuer.',
+  settlement_payout_title: 'Votre versement',
+  settlement_refund_title: 'Votre remboursement',
+  settlement_fee: 'Après {{fee}} de frais BagBuddy.',
+  settlement_payout_done: 'Envoyé sur votre compte bancaire.',
+  settlement_refund_done: 'Remboursé sur votre moyen de paiement.',
+  settlement_simulated: 'Simulé : aucun argent réel ne circule dans cet environnement.',
+  settlement_awaiting_account:
+    'En attente de votre compte de versement : configurez-le pour recevoir ce montant.',
+  settlement_failed: 'Ce virement a échoué. Notre équipe s’en occupe.',
+  settlement_pending: 'En cours.',
+
+  // Alertes de trajet
+  my_alerts: 'Mes alertes de trajet',
+  alerts_lede:
+    'Vous recevez un email chaque fois qu’une annonce correspondant à l’une de ces alertes est publiée. Créez-les depuis l’accueil, une fois un trajet choisi.',
+  no_alerts:
+    'Aucune alerte pour l’instant. Choisissez un départ et une arrivée sur l’accueil, puis touchez « M’alerter ».',
+  alert_prompt: 'Recevez un email à chaque nouvelle annonce {{route}}.',
+  alert_create: 'M’alerter',
+  alert_created: 'Alerte créée pour {{route}}.',
+  manage_alerts: 'Gérer mes alertes',
+  alert_any_date: 'Toutes les dates',
+  alert_date_exact: 'Le {{date}}',
+  alert_date_flex: 'Autour du {{date}} (± {{days}} jours)',
+  alert_max_price: '{{price}} / kg max',
+  alert_min_weight: '{{weight}} kg min',
+  delete_alert: 'Supprimer l’alerte {{route}}',
+  delete_alert_message: 'Vous ne recevrez plus d’emails pour ce trajet.',
+  error_alert_failed: "L'alerte n'a pas pu être créée. Réessayez dans un instant.",
+  error_too_many_alerts: 'Vous pouvez garder jusqu’à 10 alertes. Supprimez-en une d’abord.',
+  error_alert_needs_email: 'Votre compte doit avoir une adresse email pour recevoir des alertes.',
+  error_alert_delete_failed: "L'alerte n'a pas pu être supprimée. Réessayez dans un instant.",
+
+  // Paiement Stripe
+  payment_amount: 'Montant à payer',
+  payment_preparing: 'Préparation du paiement sécurisé...',
+  payment_pay: 'Payer maintenant',
+  payment_paying: 'Paiement...',
+  payment_secure_note: 'Votre carte est saisie chez Stripe et ne passe jamais par BagBuddy.',
+  payment_waiting_confirmation: 'Paiement accepté. En attente de la confirmation de Stripe...',
+  payment_confirmation_late:
+    'Votre paiement est passé, mais sa confirmation prend plus de temps que d’habitude. Vous ne serez pas débité une seconde fois.',
+  payment_unavailable: "Le paiement n'a pas pu être préparé. Réessayez dans un instant.",
+  payment_failed: 'Le paiement a échoué.',
+
+  // Partage
+  share: 'Partager cette annonce',
+  link_copied: 'Lien copié',
 };

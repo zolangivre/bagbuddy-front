@@ -1,5 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, inject, input, model, signal } from '@angular/core';
+import { FLEX_DAYS } from '../../core/date-window';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { ListingFilters } from '../../core/models';
 import { TRANSACTION_STATUS } from '../../core/transaction-status';
@@ -27,6 +28,24 @@ import { TextField } from './text-field';
         <bb-airport-input [label]="i18n.t('from')" placeholder="JFK" [(value)]="from" />
         <bb-airport-input [label]="i18n.t('to')" placeholder="CDG" [(value)]="to" />
       </div>
+
+      <!-- Dates flexibles : peu de voyageurs ont exactement le bon jour, et un
+           filtre au jour pres renvoie souvent une liste vide. -->
+      <fieldset>
+        <legend class="bb-section-title"><bb-t key="departure_date_filter" /></legend>
+        <!-- Empiles et non en paire : un input date a une largeur minimale propre
+             au navigateur (jour / mois / annee + icone) qui ne tient pas a moitie
+             du rail. -->
+        <bb-text-field [label]="i18n.t('date')" type="date" [(value)]="date" />
+        <label class="select">
+          <span class="select-label">{{ i18n.t('date_flexibility') }}</span>
+          <select [value]="flexDays()" [disabled]="!date()" (change)="onFlexChange($event)">
+            @for (days of flexOptions; track days) {
+              <option [value]="days">{{ flexLabel(days) }}</option>
+            }
+          </select>
+        </label>
+      </fieldset>
 
       <fieldset>
         <legend class="bb-section-title"><bb-t key="price_range" /></legend>
@@ -161,6 +180,22 @@ import { TextField } from './text-field';
       gap: 8px;
     }
 
+    .select {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .select-label {
+      font-size: var(--bb-fs-body-2);
+      color: var(--bb-text);
+    }
+
+    .select select:disabled {
+      opacity: 0.55;
+    }
+
+    .select select,
     .status select {
       height: 44px;
       border: 1px solid transparent;
@@ -223,6 +258,9 @@ export class Filters {
   protected readonly maxPrice = signal<string | number>('');
   protected readonly minWeight = signal<string | number>('');
   protected readonly maxWeight = signal<string | number>('');
+  protected readonly date = signal<string | number>('');
+  protected readonly flexDays = signal(0);
+  protected readonly flexOptions = FLEX_DAYS;
 
   /** Rail a partir de 1024px, modale en dessous. */
   protected readonly wide = signal(false);
@@ -252,6 +290,8 @@ export class Filters {
       maxPrice: this.toNumber(this.maxPrice()),
       minWeight: this.toNumber(this.minWeight()),
       maxWeight: this.toNumber(this.maxWeight()),
+      date: String(this.date()) || undefined,
+      flexDays: this.date() ? this.flexDays() : undefined,
     }));
     this.open.set(false);
   }
@@ -263,7 +303,18 @@ export class Filters {
     this.maxPrice.set('');
     this.minWeight.set('');
     this.maxWeight.set('');
+    this.date.set('');
+    this.flexDays.set(0);
     this.filters.update((current) => ({ sort: current.sort }));
+  }
+
+  protected flexLabel(days: number): string {
+    if (days === 0) return this.i18n.t('date_exact');
+    return days === 1 ? this.i18n.t('date_flex_one') : this.i18n.t('date_flex_days', { days });
+  }
+
+  protected onFlexChange(event: Event): void {
+    this.flexDays.set(Number((event.target as HTMLSelectElement).value));
   }
 
   protected onStatusChange(event: Event): void {

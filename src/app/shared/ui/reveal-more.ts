@@ -15,12 +15,11 @@ import {
  * Sentinelle posee apres une liste rendue par tranches : emet `reached` quand
  * elle approche de la fenetre, et le parent affiche la tranche suivante.
  *
- * Pourquoi pas une vraie pagination : l'accueil et les transactions filtrent et
- * trient cote client sur la liste complete (et calculent leurs totaux dessus),
- * et le schema n'offre ni filtre ni tri serveur — `myTransactions` n'a meme pas
- * de `limit`. Couper la requete fausserait les filtres. On garde donc une seule
- * lecture et on etale le rendu : c'est le DOM de cinquante cartes d'embarquement
- * qui coute, pas le JSON.
+ * Deux usages. L'accueil pagine cote serveur (`searchTrips`) : `reached`
+ * y demande la page suivante. Les transactions, elles, filtrent et totalisent
+ * cote client sur la liste complete — `myTransactions` n'a ni filtre ni
+ * `limit` — et `revealInSlices()` n'y etale que le rendu : c'est le DOM de
+ * cinquante cartes qui coute, pas le JSON.
  *
  * `count` est le nombre d'elements deja affiches. A chaque changement la
  * sentinelle est re-observee : un IntersectionObserver ne rappelle que sur un

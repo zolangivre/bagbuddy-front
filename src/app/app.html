@@ -1,10 +1,10 @@
 <a class="skip-link" href="#main"><bb-t key="home" /></a>
 
-@if (auth.isSignedIn()) {
+@if (showNav()) {
   <bb-app-nav />
 }
 
-<main id="main" tabindex="-1" [class.with-tab-bar]="auth.isSignedIn()">
+<main id="main" tabindex="-1" [class.with-tab-bar]="showNav()">
   <router-outlet />
 </main>
 

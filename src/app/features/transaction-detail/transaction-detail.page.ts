@@ -1,14 +1,25 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  Injector,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { GraphQlError } from '../../core/api/graphql.client';
 import { LoadErrorKey, loadErrorKey } from '../../core/api/load-error';
 import { ReviewsService } from '../../core/api/reviews.service';
+import { StripeService } from '../../core/api/stripe.service';
 import { TransactionsService } from '../../core/api/transactions.service';
 import { TripsService } from '../../core/api/trips.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { ConfirmService } from '../../core/confirm.service';
 import { formatLocalizedDate } from '../../core/format';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { PendingActionsService } from '../../core/pending-actions.service';
 import { Listing, ListingInfo, Review, Role, Transaction } from '../../core/models';
 import { TRANSACTION_STATUS } from '../../core/transaction-status';
 import { Icon } from '../../shared/icon/icon';
@@ -18,7 +29,15 @@ import { LoadError } from '../../shared/ui/load-error';
 import { Loader } from '../../shared/ui/loader';
 import { ReviewCard } from '../../shared/ui/review-card';
 import { StatusBadge } from '../../shared/ui/status-badge';
+import { ReportMemberDialog } from '../../shared/ui/report-member-dialog';
+import { ShareButton } from '../../shared/ui/share-button';
+import { ContentDeclaration } from './content-declaration';
+import { DeclaredContent } from './declared-content';
+import { HandoverCard } from './handover-card';
 import { PartyCard } from './party-card';
+import { PaymentDialog } from './payment-dialog';
+import { SettlementCard } from './settlement-card';
+import { TransactionChat } from './transaction-chat';
 import { ProgressCard } from './progress-card';
 import { StatusCard } from './status-card';
 import { ReviewDraft, ReviewModal } from './review-modal';
@@ -29,6 +48,10 @@ import { WeightSelector } from './weight-selector';
  * Un seul aiguillage sur le statut, comme cote mobile : ajouter un statut
  * implique d'ajouter un cas ici, dans le badge et dans la carte de statut.
  */
+/** Relectures du reglement asynchrone : environ 30 secondes au total. */
+const SETTLEMENT_READS = 10;
+const SETTLEMENT_READ_MS = 3_000;
+
 @Component({
   selector: 'bb-transaction-detail-page',
   imports: [
@@ -45,6 +68,14 @@ import { WeightSelector } from './weight-selector';
     Loader,
     LoadError,
     Icon,
+    ReportMemberDialog,
+    ContentDeclaration,
+    DeclaredContent,
+    HandoverCard,
+    TransactionChat,
+    SettlementCard,
+    PaymentDialog,
+    ShareButton,
   ],
   template: `
     <header class="topbar">
@@ -61,6 +92,15 @@ import { WeightSelector } from './weight-selector';
           </h1>
           <span class="bb-body-3">{{ createdOn() }}</span>
         </div>
+        @if (listing()?.id; as listingId) {
+          <!-- On partage l'annonce, jamais la transaction : elle ne regarde que ses deux parties. -->
+          <bb-share-button
+            [title]="
+              (listing()?.departureAirport ?? '') + ' → ' + (listing()?.arrivalAirport ?? '')
+            "
+            [path]="'/transaction-detail?listingId=' + listingId"
+          />
+        }
         <bb-status-badge [status]="status()" />
       </div>
     </header>
@@ -78,6 +118,25 @@ import { WeightSelector } from './weight-selector';
 
           <bb-party-card [listing]="currentListing" [transaction]="transaction()" />
 
+          @if (counterpart(); as other) {
+            <bb-report-member-dialog
+              [memberSub]="other.sub"
+              [memberName]="other.name"
+              [transactionId]="transaction()?.id"
+            />
+          }
+
+          @if (transaction(); as current) {
+            <bb-settlement-card [transaction]="current" [role]="role()" />
+          }
+
+          @if (transaction()?.contentDescription; as description) {
+            <bb-declared-content
+              [description]="description"
+              [accepted]="!!transaction()?.prohibitedItemsAccepted"
+            />
+          }
+
           <!--
             Contenu propre a l'etape : ce qui demande une saisie ou de la
             lecture reste dans la colonne principale, les actions vont dans la
@@ -87,6 +146,21 @@ import { WeightSelector } from './weight-selector';
             @case (statuses.BROWSE_LISTING) {
               @if (role() === 'buyer') {
                 <bb-weight-selector [listing]="currentListing" [(weight)]="selectedWeight" />
+                <bb-content-declaration
+                  [(description)]="contentDescription"
+                  [(accepted)]="prohibitedAccepted"
+                  [showErrors]="declarationTried()"
+                />
+              }
+            }
+
+            @case (statuses.CONFIRMED) {
+              @if (transaction(); as current) {
+                <bb-handover-card
+                  [transaction]="current"
+                  [role]="role()"
+                  (completed)="onHandoverCompleted($event)"
+                />
               }
             }
 
@@ -111,6 +185,13 @@ import { WeightSelector } from './weight-selector';
                 </div>
               }
             }
+          }
+
+          @if (transaction()?.id; as transactionId) {
+            <bb-transaction-chat
+              [transactionId]="transactionId"
+              [closed]="status() === statuses.CANCELLED"
+            />
           }
         </section>
 
@@ -216,6 +297,14 @@ import { WeightSelector } from './weight-selector';
         </aside>
       </div>
 
+      @if (transaction(); as current) {
+        <bb-payment-dialog
+          [(open)]="paymentOpen"
+          [transaction]="current"
+          (confirmed)="onPaymentConfirmed($event)"
+        />
+      }
+
       <bb-review-modal
         [(open)]="reviewModalOpen"
         [review]="editedReview()"
@@ -297,6 +386,9 @@ export class TransactionDetailPage {
   private readonly transactionsApi = inject(TransactionsService);
   private readonly reviewsApi = inject(ReviewsService);
   private readonly confirm = inject(ConfirmService);
+  private readonly stripeApi = inject(StripeService);
+  private readonly injector = inject(Injector);
+  private readonly pendingActions = inject(PendingActionsService);
 
   protected readonly loading = signal(true);
   /** Echec de lecture autre qu'un introuvable, qui garde son propre ecran. */
@@ -312,6 +404,23 @@ export class TransactionDetailPage {
   protected readonly editedReview = signal<Review | null>(null);
 
   protected readonly currentUserSub = computed(() => this.auth.userInfo()?.sub ?? '');
+  protected readonly paymentOpen = signal(false);
+  /** Declaration du contenu, saisie avant la demande. */
+  protected readonly contentDescription = signal<string | number>('');
+  protected readonly prohibitedAccepted = signal(false);
+  protected readonly declarationTried = signal(false);
+
+  /** L'autre partie d'une transaction existante : celle qu'on peut signaler depuis ici. */
+  protected readonly counterpart = computed(() => {
+    const transaction = this.transaction();
+    if (!transaction?.id) return null;
+    return this.role() === 'buyer'
+      ? {
+          sub: transaction.sellerId,
+          name: transaction.listingInfo?.sellerUserInfo?.name ?? '',
+        }
+      : { sub: transaction.buyerId, name: transaction.buyerInfo?.name ?? '' };
+  });
   protected readonly sellerName = computed(
     () => this.transaction()?.listingInfo?.sellerUserInfo?.name ?? '',
   );
@@ -354,6 +463,9 @@ export class TransactionDetailPage {
 
   constructor() {
     this.load();
+    inject(DestroyRef).onDestroy(() => {
+      if (this.settlementTimer) clearTimeout(this.settlementTimer);
+    });
   }
 
   /** Relit l'URL a chaque appel : apres une reservation, elle porte la transaction. */
@@ -415,6 +527,41 @@ export class TransactionDetailPage {
     this.role.set(isBuyer ? 'buyer' : 'seller');
     this.status.set(isBuyer ? transaction.buyerStatus : transaction.sellerStatus);
     this.selectedWeight.set(transaction.weight || 1);
+    this.followSettlement(transaction);
+  }
+
+  private settlementTimer: ReturnType<typeof setTimeout> | null = null;
+  private settlementTries = 0;
+
+  /**
+   * Le reglement part apres le commit, sur un autre thread : la reponse qui
+   * termine ou annule la transaction montre encore PENDING, montants deja
+   * calcules. On relit quelques fois pour afficher l'etat final (DONE,
+   * AWAITING_ACCOUNT, SIMULATED, FAILED). Au-dela, PENDING reste affiche tel
+   * quel : c'est un etat normal, que SettlementJob finira de regler.
+   */
+  private followSettlement(transaction: Transaction): void {
+    const pending =
+      transaction.refundStatus === 'PENDING' || transaction.payoutStatus === 'PENDING';
+    if (this.settlementTimer) {
+      clearTimeout(this.settlementTimer);
+      this.settlementTimer = null;
+    }
+    if (!pending || !transaction.id) {
+      this.settlementTries = 0;
+      return;
+    }
+    if (this.settlementTries >= SETTLEMENT_READS) return;
+    const id = transaction.id;
+    this.settlementTimer = setTimeout(() => {
+      this.settlementTries++;
+      this.transactionsApi.byId(id).subscribe({
+        next: (current) => {
+          // L'utilisateur a pu changer de transaction entre-temps.
+          if (this.transaction()?.id === id) this.show(current);
+        },
+      });
+    }, SETTLEMENT_READ_MS);
   }
 
   /** Un introuvable garde l'ecran « aucun resultat » ; le reste propose de reessayer. */
@@ -434,6 +581,20 @@ export class TransactionDetailPage {
     const user = this.auth.userInfo();
     if (!listing || !user) return;
 
+    // La declaration se verifie avant la confirmation : demander « envoyer ? »
+    // pour repondre ensuite « il manque la description » serait un aller-retour de trop.
+    if (!String(this.contentDescription()).trim() || !this.prohibitedAccepted()) {
+      this.declarationTried.set(true);
+      // Focus sur le premier manque : la description, sinon la case a cocher.
+      const field = String(this.contentDescription()).trim()
+        ? 'bb-content-declaration input[type=checkbox]'
+        : 'bb-content-declaration textarea';
+      afterNextRender(() => document.querySelector<HTMLElement>(field)?.focus(), {
+        injector: this.injector,
+      });
+      return;
+    }
+
     const confirmed = await this.confirm.ask({
       title: this.i18n.t('confirm_reservation_title'),
       message: this.i18n.t('confirm_reservation_message'),
@@ -446,17 +607,20 @@ export class TransactionDetailPage {
     const weight = this.selectedWeight();
     this.submitting.set(true);
     this.transactionsApi
-      // On n'envoie que l'annonce et le poids : le back deduit l'acheteur du
+      // L'annonce, le poids et la declaration : le back deduit l'acheteur du
       // token, le vendeur et le prix de l'annonce reelle, et pose les statuts
       // initiaux. Envoyer total / sellerId / buyerId ici n'aurait aucun effet.
       .create({
         listingId: listing.id,
         weight,
+        contentDescription: String(this.contentDescription()).trim(),
+        prohibitedItemsAccepted: this.prohibitedAccepted(),
       })
       .subscribe({
         next: (created) => {
           this.submitting.set(false);
           this.show(created);
+          this.pendingActions.refresh({ force: true });
           // L'URL passe de l'annonce a la transaction, pour qu'un rechargement
           // ou un partage retombe dessus. Meme route : le composant est reutilise
           // et ne relit rien.
@@ -562,14 +726,24 @@ export class TransactionDetailPage {
 
   /**
    * PAYMENT_REQUIRED -> paiement.
-   * stripeservice est desactive par defaut dans docker-compose.dev.yml (il lui
-   * faut de vraies cles), donc on confirme le paiement sans passer par Stripe,
-   * comme le ferait le callback onPaymentSuccess du mobile. Brancher le
-   * paiement reel = appeler /stripe/create-payment-intent ici.
+   *
+   * Paiement reel des que stripeservice repond (Payment Element, voir
+   * PaymentDialog). Sans lui — en dev, il ne demarre pas sans cles Stripe — on
+   * garde la confirmation simulee, qui ne passe que si le back tourne avec
+   * PAYMENTS_REQUIRE_STRIPE=false.
    */
   protected async completePayment(): Promise<void> {
     const transaction = this.transaction();
     if (!transaction?.id) return;
+
+    const stripeAvailable = await firstValueFrom(this.stripeApi.config()).then(
+      () => true,
+      () => false,
+    );
+    if (stripeAvailable) {
+      this.paymentOpen.set(true);
+      return;
+    }
 
     const confirmed = await this.confirm.ask({
       title: this.i18n.t('complete_payment'),
@@ -590,6 +764,16 @@ export class TransactionDetailPage {
       'payment_completed_title',
       'payment_completed_message',
       'payment_completed_error_message',
+    );
+  }
+
+  /** Paiement Stripe abouti et confirme par le webhook. */
+  protected onPaymentConfirmed(updated: Transaction): void {
+    this.show(updated);
+    this.pendingActions.refresh({ force: true });
+    this.confirm.inform(
+      this.i18n.t('payment_completed_title'),
+      this.i18n.t('payment_completed_message'),
     );
   }
 
@@ -710,6 +894,13 @@ export class TransactionDetailPage {
       });
   }
 
+  /** Le voyageur a saisi le bon code : la transaction est terminee. */
+  protected onHandoverCompleted(updated: Transaction): void {
+    this.show(updated);
+    this.pendingActions.refresh({ force: true });
+    this.confirm.inform(this.i18n.t('handover_done_title'), this.i18n.t('handover_done_message'));
+  }
+
   private update(
     id: string,
     payload: Partial<Transaction>,
@@ -722,6 +913,8 @@ export class TransactionDetailPage {
       next: (updated) => {
         this.submitting.set(false);
         this.show(updated);
+        // La transition vient peut-etre d'eteindre (ou d'allumer) la pastille de navigation.
+        this.pendingActions.refresh({ force: true });
         this.confirm.inform(this.i18n.t(successTitle), this.i18n.t(successMessage));
       },
       error: () => this.fail(errorMessage),
