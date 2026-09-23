@@ -1,6 +1,11 @@
 import { Component, input } from '@angular/core';
 
-/** Portage de components/Label.js : pastille arrondie icone + texte. */
+/**
+ * Portage de components/Label.js : pastille arrondie icone + texte.
+ *
+ * La pastille epouse son texte : y mettre `{{ i18n.t(cle) }}` et non un
+ * `<bb-t>`, qui lui donnerait la largeur de la traduction la plus longue.
+ */
 @Component({
   selector: 'bb-badge',
   template: `

@@ -253,10 +253,7 @@ interface PasswordForm {
             [color]="user()?.email_verified ? 'var(--bb-success)' : 'var(--bb-error)'"
           >
             <bb-icon name="shield" [size]="16" />
-            <bb-t
-              [key]="user()?.email_verified ? 'verified' : 'not_verified'"
-              [reserve]="['verified', 'not_verified']"
-            />
+            {{ i18n.t(user()?.email_verified ? 'verified' : 'not_verified') }}
           </bb-badge>
 
           @if (location()) {

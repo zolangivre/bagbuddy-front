@@ -9,7 +9,6 @@ import { Icon } from '../../shared/icon/icon';
 import { Avatar } from '../../shared/ui/avatar';
 import { Badge } from '../../shared/ui/badge';
 import { StatusBadge } from '../../shared/ui/status-badge';
-import { T } from '../../shared/ui/t';
 
 /**
  * Ligne de transaction, portee de components/TransactionCard.js.
@@ -22,7 +21,7 @@ import { T } from '../../shared/ui/t';
  */
 @Component({
   selector: 'bb-transaction-card',
-  imports: [T, RouterLink, Avatar, Badge, StatusBadge, Icon],
+  imports: [RouterLink, Avatar, Badge, StatusBadge, Icon],
   template: `
     <a
       class="row"
@@ -37,7 +36,7 @@ import { T } from '../../shared/ui/t';
             [background]="isSelling() ? 'var(--bb-green-a10)' : 'var(--bb-cyan-a10)'"
             [color]="isSelling() ? 'var(--bb-success)' : 'var(--bb-primary)'"
           >
-            <bb-t [key]="isSelling() ? 'selling' : 'buying'" [reserve]="['selling', 'buying']" />
+            {{ i18n.t(isSelling() ? 'selling' : 'buying') }}
           </bb-badge>
         </span>
       </span>

@@ -88,10 +88,18 @@ montants (classes `.bb-code`, `.bb-time`, `.bb-amount`, chiffres tabulaires).
 C'est une grotesque de signalétique de transport — même caractère neutre que la
 police système du mobile, choisie pour le sujet.
 
-Le logo, `public/logo.webp` (168×252, ~12 Ko), est un export de
-`images/logo.png` du repo mobile (1024×1536, 909 Ko) à 3× sa plus grande taille
-affichée (56×84 sur `/start`). Le réexporter depuis ce master plutôt que de
-remettre le PNG dans `public/`, et garder à l'`<img>` le ratio 2:3 du fichier.
+Le logo, `public/logo.webp` (850×288, ~48 Ko, fond transparent), est le logo
+horizontal mascotte + « BagBuddy », recadré au contenu depuis un master PNG de
+9840×3284 et exporté à 3× sa plus grande taille affichée (96px de haut sur
+`/start`). Il porte le nom : là où il apparaît (nav, écrans d'accès, vitrine) il
+remplace le texte « BagBuddy » et prend `alt="BagBuddy"`. Le réexporter depuis
+le master plutôt que de mettre un PNG dans `public/`, et garder à l'`<img>` le
+ratio du fichier (hauteur fixée, `width: auto`).
+
+Le favicon (`public/favicon.ico`, 16/32/48 px) et `public/apple-touch-icon.png`
+(180 px) viennent de la mascotte seule, centrée dans un carré. L'icône iOS a un
+fond blanc et une marge : iOS remplit la transparence en noir et arrondit les
+coins.
 
 Adaptations web à conserver :
 
@@ -172,12 +180,15 @@ Deux outils, dans cet ordre :
 Les composants partages qui portent un libelle acceptent donc une **cle** plutot
 qu'une chaine deja traduite : `bb-stat-card[labelKey]`, `bb-segmented`
 (`SegmentedOption.labelKey`), `bb-how-step[titleKey|subtitleKey]`,
-`bb-auth-shell[titleKey|ledeKey]`. `bb-button` et `bb-badge` projettent leur
-contenu : y placer un `<bb-t>` plutot que de passer `[text]`.
+`bb-auth-shell[titleKey|ledeKey]`. `bb-button` projette son contenu : y placer
+un `<bb-t>` plutot que de passer `[text]`.
 
 A ne pas envelopper : un paragraphe ou un titre pleine largeur, dont la boite est
 deja stable — `{{ i18n.t('cle') }}` suffit, et reserver la place de deux langues
-n'y ferait qu'ajouter du blanc.
+n'y ferait qu'ajouter du blanc. Ni une pastille (`bb-badge`, `bb-status-badge`) :
+elle epouse son texte, sans quoi « Verified » gardait la largeur de « Non
+vérifié ». Les pastilles sont posees dans une colonne ou en fin de ligne, leur
+variation ne pousse rien.
 
 Ce qui bouge encore, volontairement : les formats localises eux-memes (`06:00 PM`
 vs `18:00`, `Dec 1, 2026` vs `1 déc. 2026`) et les libelles qui portent un
