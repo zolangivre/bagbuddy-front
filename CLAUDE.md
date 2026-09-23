@@ -96,6 +96,11 @@ remplace le texte « BagBuddy » et prend `alt="BagBuddy"`. Le réexporter depui
 le master plutôt que de mettre un PNG dans `public/`, et garder à l'`<img>` le
 ratio du fichier (hauteur fixée, `width: auto`).
 
+Le favicon (`public/favicon.ico`, 16/32/48 px) et `public/apple-touch-icon.png`
+(180 px) viennent de la mascotte seule, centrée dans un carré. L'icône iOS a un
+fond blanc et une marge : iOS remplit la transparence en noir et arrondit les
+coins.
+
 Adaptations web à conserver :
 
 - l'annonce est une **carte d'embarquement** horizontale (trajet / perforation /
