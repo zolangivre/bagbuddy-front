@@ -1,3 +1,4 @@
+import { NgOptimizedImage } from '@angular/common';
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -29,14 +30,11 @@ interface NavItem {
  */
 @Component({
   selector: 'bb-app-nav',
-  imports: [RouterLink, RouterLinkActive, Icon, Avatar, T],
+  imports: [NgOptimizedImage, RouterLink, RouterLinkActive, Icon, Avatar, T],
   template: `
     <nav class="top" [attr.aria-label]="i18n.t('home')">
       <a class="brand" routerLink="/home">
-        <span class="mark" aria-hidden="true">
-          <bb-icon name="luggage" [size]="20" />
-        </span>
-        BagBuddy
+        <img ngSrc="/logo.webp" width="106" height="36" alt="BagBuddy" priority />
       </a>
 
       <ul>
@@ -99,24 +97,15 @@ interface NavItem {
       border-bottom: 1px solid var(--bb-border);
     }
 
+    /* Le logo porte le nom : le texte « BagBuddy » a cote ferait doublon. */
     .brand {
       display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      font-size: var(--bb-fs-h3);
-      font-weight: 700;
-      color: var(--bb-title);
+      flex-shrink: 0;
     }
 
-    .mark {
-      width: 36px;
+    .brand img {
+      width: auto;
       height: 36px;
-      border-radius: 12px;
-      background: var(--bb-primary-strong);
-      color: var(--bb-white);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
     }
 
     ul {

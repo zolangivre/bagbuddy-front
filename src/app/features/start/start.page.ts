@@ -18,10 +18,9 @@ import { RoundIcon } from '../../shared/ui/round-icon';
     <div class="screen">
       <div class="bb-page hero">
         <div class="pitch">
-          <span class="logo">
-            <img ngSrc="/logo.webp" width="56" height="84" alt="" priority />
-          </span>
-          <h1 class="bb-display">BagBuddy</h1>
+          <h1 class="logo">
+            <img ngSrc="/logo.webp" width="283" height="96" alt="BagBuddy" priority />
+          </h1>
           <p class="lede"><bb-t key="start_subtitle" /></p>
           <p class="bb-body"><bb-t key="start_description" /></p>
 
@@ -154,28 +153,18 @@ import { RoundIcon } from '../../shared/ui/round-icon';
       max-width: 36ch;
     }
 
+    /* Le logo porte le nom, il tient lieu de titre : le h1 garde son role et
+       prend son nom accessible dans l'alt. */
     .logo {
-      width: 84px;
-      height: 84px;
-      border-radius: 22px;
-      background: var(--bb-primary-strong);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      box-shadow: 0 18px 40px rgba(3, 105, 161, 0.28);
+      margin: 0;
+      line-height: 0;
     }
 
-    /* Hauteur de la pastille, largeur au ratio du fichier (2:3) : une image
-       etiree en carre puis ramenee par object-fit fait diverger le ratio rendu
-       du ratio reel, ce que NgOptimizedImage signale (NG02952). */
+    /* Hauteur fixee, largeur au ratio du fichier (850:288) : un ratio rendu
+       different du ratio reel est signale par NgOptimizedImage (NG02952). */
     .logo img {
       width: auto;
-      height: 100%;
-    }
-
-    h1 {
-      margin: 0;
+      height: 96px;
     }
 
     .lede {

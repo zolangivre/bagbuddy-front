@@ -21,10 +21,7 @@ import { T } from '../../shared/ui/t';
     <div class="screen">
       <header class="bar bb-page">
         <a class="brand" routerLink="/start">
-          <span class="mark">
-            <img ngSrc="/logo.webp" width="24" height="36" alt="" />
-          </span>
-          BagBuddy
+          <img ngSrc="/logo.webp" width="118" height="40" alt="BagBuddy" priority />
         </a>
 
         <div class="lang">
@@ -104,27 +101,11 @@ import { T } from '../../shared/ui/t';
 
     .brand {
       display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      font-size: var(--bb-fs-h4);
-      font-weight: 600;
-      color: var(--bb-title);
     }
 
-    .mark img {
-      width: 22px;
-      height: auto;
-    }
-
-    .mark {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      background: var(--bb-primary-strong);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
+    .brand img {
+      width: auto;
+      height: 40px;
     }
 
     .lang {
