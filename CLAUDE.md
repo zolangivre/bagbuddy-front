@@ -488,6 +488,21 @@ langue (voir « Changer de langue ne doit rien déplacer »).
 icônes que `lucide-react-native` côté mobile) : ne pas l'éditer à la main, le
 régénérer si de nouvelles icônes sont nécessaires.
 
+### CSP
+
+[src/server.ts](src/server.ts) pose une Content-Security-Policy sur chaque
+page HTML, avec un **nonce neuf par requête** : `index.html` porte
+`ngCspNonce="__CSP_NONCE__"`, Angular recopie ce marqueur au build sur ses
+scripts inline (event replay, chargement de la feuille critique), et le serveur
+le remplace à l'envoi. `security.autoCsp` n'est pas une option : Angular le
+refuse avec le SSR. Pas de script inline ni d'attribut `on…` écrit à la main,
+donc : ils seraient bloqués.
+
+**Une nouvelle origine externe (API, CDN, SDK) doit être ajoutée à la politique**,
+sinon elle est bloquée sans autre symptôme qu'une erreur de console. Les
+origines de `apiUrl` et `keycloakUrl` y entrent d'elles-mêmes depuis
+l'environnement ; Stripe y est déclaré à la main.
+
 ### Accessibilité
 
 Le rendu a été vérifié avec axe-core (0 violation sur les écrans principaux, en

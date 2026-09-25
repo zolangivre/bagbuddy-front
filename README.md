@@ -58,6 +58,15 @@ dans tous les statuts. Mot de passe partout `Test1234!`, par exemple
 npm start      # serveur de dev
 npm run build  # build de production
 npm test       # tests unitaires (vitest)
+npm run serve:ssr:bagbuddy-front  # sert le build sur http://localhost:4000
+```
+
+Le serveur de production refuse (400) toute requête dont l'en-tête `Host`
+n'est pas autorisé : seul `localhost` l'est dans `angular.json`. En
+déploiement, déclarer le domaine public, sans `*` :
+
+```bash
+NG_ALLOWED_HOSTS=bagbuddy.example.com node dist/bagbuddy-front/server/server.mjs
 ```
 
 ## Organisation du code
