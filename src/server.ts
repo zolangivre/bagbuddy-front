@@ -4,9 +4,9 @@ import {
   isMainModule,
   writeResponseToNodeResponse,
 } from '@angular/ssr/node';
-import express from 'express';
+import express, { type ErrorRequestHandler } from 'express';
 import { randomBytes } from 'node:crypto';
-import { join } from 'node:path';
+import { extname, join } from 'node:path';
 import { environment } from './environments/environment';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
@@ -38,28 +38,30 @@ function originOf(url: string): string[] {
  *
  * Stripe : origines de https://docs.stripe.com/security/guide#content-security-policy,
  * limitees a ce que le Payment Element utilise (pas de Maps).
+ *
+ * Calculee une fois, coupee autour du nonce : seul lui change d'une reponse a l'autre.
  */
-function contentSecurityPolicy(nonce: string): string {
-  return [
-    "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' https://js.stripe.com https://*.js.stripe.com`,
-    // Google Fonts : feuille distante en dev, inlinee par le build de production.
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: https://*.stripe.com",
-    [
-      "connect-src 'self'",
-      ...originOf(environment.apiUrl),
-      ...originOf(environment.keycloakUrl),
-      'https://api.stripe.com',
-    ].join(' '),
-    'frame-src https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com',
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "object-src 'none'",
-  ].join('; ');
-}
+const [CSP_BEFORE_NONCE, CSP_AFTER_NONCE] = [
+  "default-src 'self'",
+  "script-src 'self' 'nonce-{nonce}' https://js.stripe.com https://*.js.stripe.com",
+  // Google Fonts : feuille distante en dev, inlinee par le build de production.
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: https://*.stripe.com",
+  [
+    "connect-src 'self'",
+    ...originOf(environment.apiUrl),
+    ...originOf(environment.keycloakUrl),
+    'https://api.stripe.com',
+  ].join(' '),
+  'frame-src https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com',
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+]
+  .join('; ')
+  .split('{nonce}');
 
 /**
  * Pose le nonce de la requete dans le HTML et la CSP qui l'autorise. Les
@@ -73,9 +75,10 @@ async function withCsp(response: Response): Promise<Response> {
   const headers = new Headers(response.headers);
   headers.delete('content-length');
   headers.delete('etag');
-  // Un nonce ne sert qu'une fois : la page ne doit pas etre rejouee depuis un cache.
-  headers.set('cache-control', 'no-store');
-  headers.set('content-security-policy', contentSecurityPolicy(nonce));
+  // Un cache partage servirait le meme nonce a tous : on le reserve au navigateur,
+  // qui revalide. Pas `no-store`, qui priverait les retours Stripe du back/forward cache.
+  headers.set('cache-control', 'private, no-cache');
+  headers.set('content-security-policy', `${CSP_BEFORE_NONCE}${nonce}${CSP_AFTER_NONCE}`);
   return new Response(html, { status: response.status, statusText: response.statusText, headers });
 }
 
@@ -92,6 +95,21 @@ async function withCsp(response: Response): Promise<Response> {
  */
 
 /**
+ * Vrai pour une page HTML du build. Le chemin est decode et mis en minuscules
+ * comme le fait `express.static` avant de chercher le fichier : sans ca,
+ * `/index.csr%2Ehtml` ou `/INDEX.CSR.HTML` (disque insensible a la casse)
+ * passeraient sans CSP. Un encodage invalide reste a `express.static`, qui
+ * le refuse (400) sans rien servir.
+ */
+function isHtmlPath(path: string): boolean {
+  try {
+    return extname(decodeURIComponent(path)).toLowerCase() === '.html';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Serve static files from /browser, sauf les pages HTML : elles portent le
  * marqueur de nonce et passent par le rendu Angular ci-dessous.
  */
@@ -100,7 +118,7 @@ const serveStatic = express.static(browserDistFolder, {
   index: false,
   redirect: false,
 });
-app.use((req, res, next) => (req.path.endsWith('.html') ? next() : serveStatic(req, res, next)));
+app.use((req, res, next) => (isHtmlPath(req.path) ? next() : serveStatic(req, res, next)));
 
 /**
  * Handle all other requests by rendering the Angular application.
@@ -112,6 +130,22 @@ app.use((req, res, next) => {
     .then((response) => (response ? writeResponseToNodeResponse(response, res) : next()))
     .catch(next);
 });
+
+/**
+ * Reponse d'erreur sans detail : celle d'Express affiche la pile et les chemins
+ * du serveur tant que `NODE_ENV` n'est pas `production`. Une URL mal encodee
+ * (`%2G`) fait lever le routeur d'Angular : c'est une requete invalide, pas une panne.
+ */
+const errorHandler: ErrorRequestHandler = (error, _req, res, next) => {
+  if (res.headersSent) return next(error);
+  if (error instanceof URIError) {
+    res.status(400).type('text/plain').send('Bad Request');
+    return;
+  }
+  console.error(error);
+  res.status(500).type('text/plain').send('Internal Server Error');
+};
+app.use(errorHandler);
 
 /**
  * Start the server if this module is the main entry point, or it is ran via PM2.

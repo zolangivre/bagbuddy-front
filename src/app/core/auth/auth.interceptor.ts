@@ -4,14 +4,15 @@ import { from, switchMap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
 
+const API_BASE = environment.apiUrl.replace(/\/+$/, '');
+
 /**
  * Vrai pour l'API gateway et ses sous-chemins seulement. Un simple
  * `startsWith(apiUrl)` laisserait passer `http://localhost:8080.evil.com` ou
  * `/api-autre` : la frontiere de chemin fait partie du test.
  */
 function isApiUrl(url: string): boolean {
-  const base = environment.apiUrl.replace(/\/+$/, '');
-  return url === base || url.startsWith(`${base}/`);
+  return url === API_BASE || url.startsWith(`${API_BASE}/`);
 }
 
 /** Ajoute le bearer Keycloak sur les appels a l'API gateway. */

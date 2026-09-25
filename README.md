@@ -61,9 +61,16 @@ npm test       # tests unitaires (vitest)
 npm run serve:ssr:bagbuddy-front  # sert le build sur http://localhost:4000
 ```
 
-Le serveur de production refuse (400) toute requête dont l'en-tête `Host`
-n'est pas autorisé : seul `localhost` l'est dans `angular.json`. En
-déploiement, déclarer le domaine public, sans `*` :
+Le build de production prend `environment.prod.ts` : API et Keycloak y sont
+en chemins relatifs (`/api`, `/auth`), à router par le reverse proxy placé
+devant le serveur Node. Sans lui, `serve:ssr` affiche l'app mais n'atteint
+pas le backend ; pour développer, rester sur `npm start`.
+
+Le serveur refuse (400) toute requête dont l'en-tête `Host` n'est pas
+autorisé : seuls `localhost` et `127.0.0.1` le sont dans `angular.json`.
+Déclarer les autres noms, sans `*` : le domaine public en déploiement, une IP
+du réseau local pour tester depuis un téléphone, le nom du conteneur pour un
+health check Docker.
 
 ```bash
 NG_ALLOWED_HOSTS=bagbuddy.example.com node dist/bagbuddy-front/server/server.mjs
